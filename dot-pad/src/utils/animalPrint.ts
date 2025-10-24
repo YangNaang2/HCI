@@ -1,5 +1,5 @@
-import { Device } from "./device";
-import { DotPadSDK } from "./DotPadSDK-1.0.0";
+import { Device } from "../device";
+import { DotPadSDK } from "../DotPadSDK-1.0.0";
 
 /*
 input:
