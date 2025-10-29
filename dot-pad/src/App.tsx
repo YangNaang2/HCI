@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Test from "./pages/Test";
-import Demo from "./pages/Demo";
 import Navigation from "./pages/Navigation";
 import Dictionary from "./pages/Dictionary";
 import Navbar from "./components/Navbar";
@@ -13,7 +12,6 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Navigation />} />
         <Route path="/test" element={<Test />} />
-        <Route path="/demo" element={<Demo />} />
         <Route path="/dictionary" element={<Dictionary />} />
       </Routes>
     </BrowserRouter>
