@@ -20,16 +20,6 @@ export default function Navbar() {
 
       <nav className={`navbar-links ${menuOpen ? "open" : ""}`}>
         <NavLink
-          to="/demo"
-          className={({ isActive }) =>
-            isActive ? "nav-item active" : "nav-item"
-          }
-          onClick={() => setMenuOpen(false)}
-        >
-          Demo
-        </NavLink>
-
-        <NavLink
           to="/test"
           className={({ isActive }) =>
             isActive ? "nav-item active" : "nav-item"
