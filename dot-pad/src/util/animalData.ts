@@ -3,6 +3,7 @@ interface AnimalDataProps {
     buttonName: "f1" | "f2" | "f3" | "f4";
 }
 
+
 type Animal = {
     name: string;
     f1: string;
