@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { DotPadSDK } from "../DotPadSDK-1.0.0";
 import { Device } from "../device";
 import { animalList, AnimalData } from "../util/animalData"; // 테스트 데이터를 저장해놓은 곳
+import AnimalBlock from "../components/AnimalBlock";
 import "../App.css";
 
 import DotPadDisplay from "../components/DotPadDisplay";
@@ -127,6 +128,7 @@ export default function Dictionary() {
         <h2>Dot Pad Display Test</h2>
         <DotPadDisplay mainData={mainDisplayData} subData={subDisplayData} />
         <DotPadButtons onArrowButtonClick={onArrowButtonClick} onFunctionButtonClick={onFunctionButtonClick} />
+        <AnimalBlock animalIdx={animalIdx} buttonName={buttonName} />
       </div>
     );
 }
