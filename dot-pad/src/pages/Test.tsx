@@ -18,8 +18,6 @@ export default function Test() {
 
   const dotpadsdk = useRef<DotPadSDK>(null);
   const [devices, setDevices] = useState<Device[]>([]);
-  const [animalIdx, setAnimalIdx] = useState<number>(0);
-  const [formIdx, setFormIdx] = useState<number>(0);
 
   useEffect(() => {
     dotpadsdk.current = new DotPadSDK();
