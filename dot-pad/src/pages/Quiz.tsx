@@ -53,7 +53,12 @@ export default function Quiz() {
         feedbackMessage: "Dot Pad 연결"
     });
 
+    const quizStateRef = useRef(quizState);
+    useEffect(() => {
+        quizStateRef.current = quizState;
+    }, [quizState]);
 
+    
     // 데이터 처리
     // 3개의 랜덤한 답안 옵션 생성
     function generateOptions(correctAnswer:string) {
@@ -98,7 +103,7 @@ export default function Quiz() {
         const randomPose = validPoses[Math.floor(Math.random()*validPoses.length)];
         setViewMode(randomPose);
 
-        const optionsText = generatedOptions.map((opt, i) => `${i + 1}번 ${opt}`).join(' ');
+        const optionsText = generatedOptions.map((opt, i) => `${i + 1}번 ${opt}`).join(', ');
         const navText = isInitial ? "" : "이전 문제를 보려면 왼쪽 화살표를 누르세요.";
 
         setQuizState({
@@ -182,6 +187,7 @@ export default function Quiz() {
     const dotpadKeyCallback = useCallback(async (keyCode: string) => {
         console.log("=> 닷패드 키 입력: " + keyCode);
 
+        const currentQuizState = quizStateRef.current;      
         const { currentAnimal, options, isAnswered, isCorrect } = quizState;
         const animal = quizState.currentAnimal;
 
@@ -308,93 +314,135 @@ export default function Quiz() {
 
     // --- 5. UI 렌더링 ---
     return (
-        <div className="quiz-container">
-            <h2>동물 퀴즈</h2>
-            
-            {/* ... (기기 연결 UI는 동일) ... */}
-
-            <hr /> 
-
-            {/* ✅ [추가] 테스트 모드 시작 버튼 */}
-            {!connectedDevice && (
-                <div style={{ padding: '20px' }}>
-                    <p>실물 닷패드 기기가 없으신가요?</p>
-                    <button className="button" onClick={handleStartTestMode}>
-                        웹 UI 테스트 모드 시작
-                    </button>
-                </div>
-            )}
-
-            {/* 퀴즈 디스플레이 영역 */}
-            {connectedDevice && quizState.currentAnimal ? (
-                <div className="quiz-area">
-                <DotPadDisplay
-                    mainData={graphicHex}
-                    subData={testHex ?? textHex} // 테스트용 헥스 추가
-            />
-                
-                {/* 사용자 컨트롤 영역 (웹 UI 버튼) */}
-                <div className="controls-area">
-                <p>{quizState.feedbackMessage}</p> {/* 화면에 텍스트 피드백 */}
-                
-                {!quizState.isAnswered ? (
-                    // 상태 1: 답 선택 전
-                    <div className="options-container">
-                    </div>
-                ) : (
-                    // 상태 2: 답 선택 후
-                    <div className="next-question-container">
-                    {quizState.isCorrect ? (
-                        // 정답 맞췄을 때
-                        <>
-                        
-                        </>
-                    ) : (
-                        <button className="button" onClick={() => loadNewQuestion(false)}>
-                        다음 문제 (→)
+        <>
+            <div className="App">
+                <h2>Dot Pad Display Test</h2>
+                    <div className="buttonContainer">
+                        <button className="selectButton" onClick={handleSelectDevice}>
+                            Select DotPad
                         </button>
-                    )}
+                    </div>
+                    <table className="table">
+                <thead>
+                    <tr>
+                        <th className="header">DotPad Name</th>
+                        <th className="header">Connect/Disconnect</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {devices.map((device) => (
+                        <tr key={device.name} className="row">
+                            <td className="cell">{device.name}</td>
+                            <td className="cell">
+                                {!device.connected && (
+                                    <button
+                                        className="button"
+                                        onClick={() => updateDeviceConnection(device, true)}
+                                    >   
+                                        Connect
+                                    </button>
+                                )}
+                                {device.connected && (
+                                    <button
+                                        className="button"
+                                        onClick={() => updateDeviceConnection(device, false)}
+                                    >
+                                        Disconnect
+                                    </button>
+                                )}
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+            </div>
+            <div className="quiz-container">
+                <h2>동물 퀴즈</h2>
+                
+                {/* ... (기기 연결 UI는 동일) ... */}
+
+                <hr /> 
+
+                {/* ✅ [추가] 테스트 모드 시작 버튼 */}
+                {!connectedDevice && (
+                    <div style={{ padding: '20px' }}>
+                        <p>실물 닷패드 기기가 없으신가요?</p>
+                        <button className="button" onClick={handleStartTestMode}>
+                            웹 UI 테스트 모드 시작
+                        </button>
                     </div>
                 )}
-                {/*</div>button className="button" onClick={() => dotpadKeyCallback('F4')}>종료 (F4)</button>*/}
-                </div>
-            </div>
-            ) : (
-            <p>Dot Pad를 연결해주세요. 퀴즈가 시작됩니다.</p>
-            )}
 
-            {/* DotPad 물리적 버튼 매핑 (UI 없이 기능만) */}
-            {connectedDevice && (
-            <DotPadButtons 
-                onArrowButtonClick={(key) => dotpadKeyCallback(key === 'next' ? 'Right' : 'Left')}
-                onFunctionButtonClick={(key) => dotpadKeyCallback(key.toUpperCase())} 
-            />
-            )}
-
-            {/* ================= 웹 UI 매핑 테스트 패널 ================= */}
-            <div style={{ marginTop: '30px', padding: '15px', border: '2px dashed blue', background: '#f0f9ff' }}>
-                <h3>매핑 테스트</h3>
-                
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '15px' }}>
+                {/* 퀴즈 디스플레이 영역 */}
+                {connectedDevice && quizState.currentAnimal ? (
+                    <div className="quiz-area">
+                    <DotPadDisplay
+                        mainData={graphicHex}
+                        subData={testHex ?? textHex} // 테스트용 헥스 추가
+                />
                     
-                    {/* 3. 리셋 버튼 */}
-                    <button onClick={() => setTestHex(null)} style={{background: '#ffcccc'}}>테스트 종료 (원래대로)</button>
+                    {/* 사용자 컨트롤 영역 (웹 UI 버튼) */}
+                    <div className="controls-area">
+                    <p>{quizState.feedbackMessage}</p> {/* 화면에 텍스트 피드백 */}
+                    
+                    {!quizState.isAnswered ? (
+                        // 상태 1: 답 선택 전
+                        <div className="options-container">
+                        </div>
+                    ) : (
+                        // 상태 2: 답 선택 후
+                        <div className="next-question-container">
+                        {quizState.isCorrect ? (
+                            // 정답 맞췄을 때
+                            <>
+                            
+                            </>
+                        ) : (
+                            <button className="button" onClick={() => loadNewQuestion(false)}>
+                            다음 문제 (→)
+                            </button>
+                        )}
+                        </div>
+                    )}
+                    {/*</div>button className="button" onClick={() => dotpadKeyCallback('F4')}>종료 (F4)</button>*/}
+                    </div>
                 </div>
+                ) : (
+                <p>Dot Pad를 연결해주세요. 퀴즈가 시작됩니다.</p>
+                )}
 
-                <div>
-                     <input 
-                        type="text" 
-                        placeholder="직접 입력 (예: A5)" 
-                        onChange={(e) => setTestHex(e.target.value)}
-                        style={{ padding: '5px', width: '150px', marginRight: '10px' }}
-                    />
-                    <span>입력하는 대로 바로 위에 뜸</span>
+                {/* DotPad 물리적 버튼 매핑 (UI 없이 기능만) */}
+                {connectedDevice && (
+                <DotPadButtons 
+                    onArrowButtonClick={(key) => dotpadKeyCallback(key === 'next' ? 'Right' : 'Left')}
+                    onFunctionButtonClick={(key) => dotpadKeyCallback(key.toUpperCase())} 
+                />
+                )}
+
+                {/* ================= 웹 UI 매핑 테스트 패널 ================= */}
+                <div style={{ marginTop: '30px', padding: '15px', border: '2px dashed blue', background: '#f0f9ff' }}>
+                    <h3>매핑 테스트</h3>
+                    
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '15px' }}>
+                        
+                        {/* 3. 리셋 버튼 */}
+                        <button onClick={() => setTestHex(null)} style={{background: '#ffcccc'}}>테스트 종료 (원래대로)</button>
+                    </div>
+
+                    <div>
+                        <input 
+                            type="text" 
+                            placeholder="직접 입력 (예: A5)" 
+                            onChange={(e) => setTestHex(e.target.value)}
+                            style={{ padding: '5px', width: '150px', marginRight: '10px' }}
+                        />
+                        <span>입력하는 대로 바로 위에 뜸</span>
+                    </div>
                 </div>
+                {/* ========================================================== */}
+
             </div>
-            {/* ========================================================== */}
-
-        </div>
-        
+        </>
     );
         
     
