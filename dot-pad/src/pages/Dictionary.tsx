@@ -40,23 +40,43 @@ export default function Dictionary() {
   }, [animalIdx, buttonName])
 
 
-  dotpadsdk.current?.addListenerKeyEvent(devices[0], (keycode: string) => {
-    const mappingFunctionKey: Record<string, "f1" | "f2" | "f3" | "f4"> = {
-      "F1": "f1",
-      "F2": "f2",
-      "F3": "f3",
-      "F4": "f4", 
-    }
-    const mappingArrowKey: Record<string, "prev" | "next"> = {
-      "P1": "prev",
-      "P2": "next",
-    }
-    if (keycode in ["F1", "F2", "F3", "F4"]) {
-      onFunctionButtonClick(mappingFunctionKey[keycode]);
-    } else {
-      onArrowButtonClick(mappingArrowKey[keycode]);
-    }
-  })
+  useEffect(() => {
+    const targetDevice = devices[0];
+    if (!targetDevice || !targetDevice.connected) return;
+
+    const listener = (keycode: string) => {
+      const mappingFunctionKey: Record<string, "f1" | "f2" | "f3" | "f4"> = {
+        "F1": "f1",
+        "F2": "f2",
+        "F3": "f3",
+        "F4": "f4",
+      };
+      const mappingArrowKey: Record<string, "prev" | "next"> = {
+        "P1": "prev",
+        "P2": "next",
+      };
+
+      if (["F1", "F2", "F3", "F4"].includes(keycode)) {
+        const fn = mappingFunctionKey[keycode as keyof typeof mappingFunctionKey];
+        if (fn) onFunctionButtonClick(fn);
+      } else if (["P1", "P2"].includes(keycode)) {
+        const dir = mappingArrowKey[keycode as keyof typeof mappingArrowKey];
+        if (dir) onArrowButtonClick(dir);
+      }
+    };
+
+    dotpadsdk.current?.addListenerKeyEvent(targetDevice.target, listener);
+
+    return () => {
+      if (dotpadsdk.current && (dotpadsdk.current as any).removeListenerKeyEvent) {
+        try {
+          (dotpadsdk.current as any).removeListenerKeyEvent(targetDevice.target, listener);
+        } catch (e) {
+          // ignore if SDK doesn't support removal
+        }
+      }
+    };
+  }, [devices]);
   
 
   // f1 ~ f4 버튼을 눌렀을 때의 행동을 정의해놓은 함수
@@ -116,10 +136,6 @@ export default function Dictionary() {
 
 
 // --------------test.tsx 에서 필요한 함수 가져옴------------------
-
-  useEffect(() => {
-    dotpadsdk.current = new DotPadSDK();
-  }, []);
 
   const updateDeviceConnection = async (device: any, connected: any) => {
     if (connected) {
