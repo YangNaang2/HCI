@@ -6,14 +6,13 @@ import { animalList, AnimalData } from "../util/animalData"; // 테스트 데이
 import AnimalBlock from "../components/AnimalBlock";
 import "../App.css";
 
-import { useContext } from "react";
-import { DotPadContext } from "../App";
 import DotPadDisplay from "../components/DotPadDisplay";
 import DotPadButtons from "../components/DotPadButtons";
 
 
 export default function Dictionary() {
-  const dotpadsdk = useContext(DotPadContext);
+  
+  const dotpadsdk = useRef<DotPadSDK>(null);
   const [devices, setDevices] = useState<Device[]>([]);
 
   const [animalIdx, setAnimalIdx] = React.useState<number>(0); // 현재 출력 중인 동물 종의 인덱스 ex) 0:개, 1:고양이, 2:펭귄
@@ -22,6 +21,15 @@ export default function Dictionary() {
   // 그림판에 표시할 데이터 상태 정의 (main : 그림용, sub : 텍스트용)
   const mainDisplayData = AnimalData({animalIdx, buttonName}); // AnimalData: 입력한 인덱스에 알맞는 정보를 반환
   const subDisplayData = "";
+
+  //페이지가 켜질 때 딱 한 번 실행
+  useEffect(() => { 
+    console.log("Dictionary 페이지 로드됨, SDK 초기화 시작") //디버깅용 로그
+
+    dotpadsdk.current = new DotPadSDK();    // SDK  인스턴스 생성
+    console.log("SDK 인스턴스 생성 완료:", dotpadsdk.current);
+
+  }, []);
 
 
   // 버튼을 누를 때마다 동물 이미지를 새로 출력
@@ -32,7 +40,7 @@ export default function Dictionary() {
   }, [animalIdx, buttonName])
 
 
-  dotpadsdk.addListenerKeyEvent(devices[0], (keycode: string) => {
+  dotpadsdk.current?.addListenerKeyEvent(devices[0], (keycode: string) => {
     const mappingFunctionKey: Record<string, "f1" | "f2" | "f3" | "f4"> = {
       "F1": "f1",
       "F2": "f2",
@@ -73,9 +81,9 @@ export default function Dictionary() {
     const targetDevice = devices[0];
     
     //****** 실제 패드 연결시 사용할 부분 *****
-    if (dotpadsdk && targetDevice) {
+    if (dotpadsdk.current && targetDevice) {
       //Test.tsx의 이미지 출력 함수 사용
-      await dotpadsdk?.displayGraphicData(targetDevice, mainDisplayData); // SDK text 출력 코드
+      await dotpadsdk.current?.displayGraphicData(targetDevice, mainDisplayData); // SDK text 출력 코드
 
     } else {
       handlePrintError();
@@ -90,9 +98,9 @@ export default function Dictionary() {
     const targetDevice = devices[0];
     
     //****** 실제 패드 연결시 사용할 부분 *****
-    if (dotpadsdk && targetDevice) {
+    if (dotpadsdk.current && targetDevice) {
       //Test.tsx의 설명글 출력 함수 사용
-      await dotpadsdk?.displayTextData(targetDevice, subDisplayData); // SDK text 출력 코드
+      await dotpadsdk.current?.displayTextData(targetDevice, subDisplayData); // SDK text 출력 코드
 
     } else {
       handlePrintError();
@@ -108,17 +116,22 @@ export default function Dictionary() {
 
 
 // --------------test.tsx 에서 필요한 함수 가져옴------------------
+
+  useEffect(() => {
+    dotpadsdk.current = new DotPadSDK();
+  }, []);
+
   const updateDeviceConnection = async (device: any, connected: any) => {
     if (connected) {
-      const isConnected = await dotpadsdk?.connect(device.target);
+      const isConnected = await dotpadsdk.current?.connect(device.target);
       if (isConnected) {
-        await dotpadsdk?.addListenerKeyEvent(
+        await dotpadsdk.current?.addListenerKeyEvent(
           device.target,
           dotpadKeyCallback
         );
       }
     } else {
-      await dotpadsdk?.disconnect(device.target);
+      await dotpadsdk.current?.disconnect(device.target);
     }
     setDevices((devices) =>
       devices.map((d) => (d.name === device.name ? { ...d, connected } : d))
@@ -127,7 +140,7 @@ export default function Dictionary() {
 
   // Function to select a DotPad device
   const handleSelectDevice = async () => {
-    const device = await dotpadsdk?.request(); // 브라우저 창을 띄워서 DotPad 블루투스 장치를 선택하게 한 다음, 선택된 장치 객체를 반환
+    const device = await dotpadsdk.current?.request(); // 브라우저 창을 띄워서 DotPad 블루투스 장치를 선택하게 한 다음, 선택된 장치 객체를 반환
     const deviceInfo = {
       target: device,
       name: device.name,
@@ -146,6 +159,44 @@ export default function Dictionary() {
   return (
       <div className="App">
         <h2>Dot Pad Display Test</h2>
+          <div className="buttonContainer">
+            <button className="selectButton" onClick={handleSelectDevice}>
+              Select DotPad
+            </button>
+          </div>
+          <table className="table">
+        <thead>
+          <tr>
+            <th className="header">DotPad Name</th>
+            <th className="header">Connect/Disconnect</th>
+          </tr>
+        </thead>
+        <tbody>
+          {devices.map((device) => (
+            <tr key={device.name} className="row">
+              <td className="cell">{device.name}</td>
+              <td className="cell">
+                {!device.connected && (
+                  <button
+                    className="button"
+                    onClick={() => updateDeviceConnection(device, true)}
+                  >
+                    Connect
+                  </button>
+                )}
+                {device.connected && (
+                  <button
+                    className="button"
+                    onClick={() => updateDeviceConnection(device, false)}
+                  >
+                    Disconnect
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
         <DotPadDisplay mainData={mainDisplayData} subData={subDisplayData} />
         <DotPadButtons onArrowButtonClick={onArrowButtonClick} onFunctionButtonClick={onFunctionButtonClick} />
         <AnimalBlock animalIdx={animalIdx} buttonName={buttonName} />
