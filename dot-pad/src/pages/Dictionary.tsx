@@ -215,6 +215,7 @@ export default function Dictionary() {
       </table>
         <DotPadDisplay mainData={mainDisplayData} subData={subDisplayData} />
         <DotPadButtons onArrowButtonClick={onArrowButtonClick} onFunctionButtonClick={onFunctionButtonClick} />
+        {/* AnimalBlock이 업데이트 되어 음성 기능이 추가되었습니다. */}
         <AnimalBlock animalIdx={animalIdx} buttonName={buttonName} />
       </div>
     );
