@@ -27,6 +27,15 @@ const textToBrailleHex = (parts: string[]): string => {
     });
     return hexParts.join('');
 };
+// 받침 유무에 따른 조사 구분
+const appendJosa = (word: string, type: '은/는') => {
+    if (!word) return "";
+
+    const lastChar = word.charCodeAt(word.length -1);
+    const hasBatchim = (lastChar - 0xAC00) % 28 > 0;
+
+    switch (type) { case '은/는' : return hasBatchim ? `${word}은` : `${word}는`;}
+};
 // ------------------------------------------------------------------------------------
 
 
@@ -58,7 +67,23 @@ export default function Quiz() {
         quizStateRef.current = quizState;
     }, [quizState]);
 
-    
+    useEffect(() => {
+        historyStateRef.current = historyState;
+    }, [historyState]);
+
+    const historyStateRef = useRef<QuizState | null>(null);
+    const futureStateRef = useRef(futureState);
+    useEffect(() => {
+        futureStateRef.current = futureState;
+    }, [futureState]);
+
+    // 배속 상태 관리 (기본값 1.0)
+    const [playbackRate, setPlaybackRate] = useState<number>(1.0);
+    const playbackRateRef = useRef(playbackRate);
+    const clickTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const lastKeyTimeRef = useRef<number>(0);
+
+
     // 데이터 처리
     // 3개의 랜덤한 답안 옵션 생성
     function generateOptions(correctAnswer:string) {
@@ -118,26 +143,30 @@ export default function Quiz() {
 
     // 다음 문제로 이동 또는 원래 문제로 복귀
     const moveToNextQuestion = () => {
-        if (futureState) {
+        const future = futureStateRef.current;
+        const currentQuiz = quizStateRef.current;
+        if (future) {
             console.log("원래 문제로 돌아옵니다")
-            setQuizState(futureState);
+            setQuizState(future);
             setFutureState(null);
             setViewMode("f1");
             return;
         }
 
-        if (quizState.isAnswered && quizState.isCorrect) {
-            setHistoryState(quizState);
+        if (currentQuiz.isAnswered && currentQuiz.isCorrect) {
+            setHistoryState(currentQuiz);
         }
         loadNewQuestion(false);
     }
 
     // 이전 문제로 이동
     const moveToPreviousQuestion = () => {
-        if (historyState) {
+        const previousState = historyStateRef.current;
+        const currentQuiz = quizStateRef.current; 
+        if (previousState) {
             console.log("이전 문제로 돌아갑니다");
-            setFutureState(quizState);
-            setQuizState(historyState);
+            setFutureState(currentQuiz);
+            setQuizState(previousState);
             setViewMode("f1");
         }
     }
@@ -145,13 +174,15 @@ export default function Quiz() {
 
     // 정답 확인 로직
     const handleAnswer = async (selectedAnswer: string) => {
-        if (quizState.isAnswered) return; // 이미 답을 선택했으면 무시
+        const currentQuiz = quizStateRef.current;
 
-        const isCorrect = (selectedAnswer === quizState.correctAnswer);
+        if (currentQuiz.isAnswered) return; // 이미 답을 선택했으면 무시
+
+        const isCorrect = (selectedAnswer === currentQuiz.correctAnswer);
         let feedbackText = "";
 
         if (isCorrect) {
-            const animal = quizState.currentAnimal;
+            const animal = currentQuiz.currentAnimal;
             const poseText = [
                 `1번 ${(animal?.f1 && animal.f1.length > 10) ? animal.pose1 : '없음'}`,
                 `2번 ${(animal?.f2 && animal.f2.length > 10) ? animal.pose2 : '없음'}`,
@@ -163,19 +194,19 @@ export default function Quiz() {
             ...prevState,
             isAnswered: true, // 정답을 맞췄으므로 상태 변경
             isCorrect: true,
-            feedbackMessage: `정답입니다! ${quizState.correctAnswer}. F1에서 F3을 눌러 다른 모습을 확인하세요.  ${poseText}. 다음 문제로 가려면 오른쪽 화살표를 누르세요.`, 
+            feedbackMessage: `정답입니다! ${currentQuiz.correctAnswer}입니다. F1에서 F3을 눌러 다른 모습을 확인하세요.  ${poseText}. 다음 문제로 가려면 오른쪽 화살표를 누르세요.`, 
         }));
     
         } else {
             // 오답일 경우
-            const optionsText = quizState.options.map((opt, i) => `${i+1}번 ${opt}`).join(', ');
-            const navText = historyState ? "이전 문제를 보려면 왼쪽 화살표를 누르세요." : "";
+            const optionsText = currentQuiz.options.map((opt, i) => `${i+1}번 ${opt}`).join(', ');
+            const navText = historyStateRef.current ? "이전 문제를 보려면 왼쪽 화살표를 누르세요." : "";
 
             // isAnswered를 true로 바꾸지 않음 (다시 시도해야 하므로)
             setQuizState(prevState => ({
                 ...prevState,
                 isCorrect: false, // 오답 플래그 (필요하다면)
-                feedbackMessage: `땡! ${selectedAnswer}는(은) 오답입니다. 다시 시도하세요. ${optionsText}. ${navText}`, // 화면 UI에만 "오답" 표시
+                feedbackMessage: `땡! ${appendJosa(selectedAnswer, '은/는')} 오답입니다. 다시 시도하세요. ${optionsText}. ${navText}`, // 화면 UI에만 "오답" 표시
             }));
         }
     };
@@ -187,24 +218,56 @@ export default function Quiz() {
     const dotpadKeyCallback = useCallback(async (keyCode: string) => {
         console.log("=> 닷패드 키 입력: " + keyCode);
 
-        const currentQuizState = quizStateRef.current;      
-        const { currentAnimal, options, isAnswered, isCorrect } = quizState;
-        const animal = quizState.currentAnimal;
+        const now = Date.now();
+        if (now - lastKeyTimeRef.current < 100) {
+            return;
+        }
+        lastKeyTimeRef.current = now;
+
+        const currentQuiz = quizStateRef.current;      
+        const currentAnimal= currentQuiz.currentAnimal;
+        const history = historyStateRef.current;
 
         if (!currentAnimal || !connectedDevice || !dotpadsdk.current) return; // 퀴즈 시작 전이거나 기기 연결 안되면 무시
         
-        if (quizState.isAnswered) { //상태 2: 정답을 맞춘 후
+        // F4 처리 로직
+        if (keyCode === 'F4') {
+            if (clickTimerRef.current) {
+                clearTimeout(clickTimerRef.current);
+                clickTimerRef.current=null;
+
+                const currentRate = playbackRateRef.current;
+                let nextRate = 1.0;
+
+                if (currentRate === 1.0) nextRate = 2.0;
+                else if (currentRate === 2.0) nextRate = 4.0;
+                else nextRate = 1.0;
+            
+                setPlaybackRate(nextRate);
+                playbackRateRef.current = nextRate;
+
+                handleSpeakFeedback();
+                console.log(`배속 변경됨: ${nextRate}`);
+            } else { //한 번 누름 -> 현재 메시지 다시 듣기
+                clickTimerRef.current = setTimeout(() => {
+                    handleSpeakFeedback();
+                    clickTimerRef.current = null;
+                }, 500);
+            }
+            return;
+        }
+        if (currentQuiz.isAnswered) { //상태 2: 정답을 맞춘 후
             switch (keyCode) {
                 case 'F1' : 
-                    if (animal?.f1) setViewMode('f1'); 
+                    if (currentAnimal?.f1) setViewMode('f1'); 
                     else console.log("F1 데이터 없음"); 
                     break;
                 case 'F2' : 
-                    if (animal?.f1) setViewMode('f2'); 
-                    else console.log("F1 데이터 없음"); 
+                    if (currentAnimal?.f1) setViewMode('f2'); 
+                    else console.log("F2 데이터 없음"); 
                     break;
                 case 'F3' : 
-                    if (animal?.f1) setViewMode('f3'); 
+                    if (currentAnimal?.f1) setViewMode('f3'); 
                     else console.log("F3 데이터 없음"); 
                     break;
                 case 'Right' : case 'next': moveToNextQuestion(); break;
@@ -213,16 +276,16 @@ export default function Quiz() {
 
         } else if (!quizState.isAnswered) { //상태 1: 정답 맞추기 전
             switch (keyCode) {
-                case 'F1' : if (quizState.options[0]) handleAnswer(quizState.options[0]); break;
-                case 'F2' : if (quizState.options[1]) handleAnswer(quizState.options[1]); break;
-                case 'F3' : if (quizState.options[2]) handleAnswer(quizState.options[2]); break;
+                case 'F1' : if (currentQuiz.options[0]) handleAnswer(currentQuiz.options[0]); break;
+                case 'F2' : if (currentQuiz.options[1]) handleAnswer(currentQuiz.options[1]); break;
+                case 'F3' : if (currentQuiz.options[2]) handleAnswer(currentQuiz.options[2]); break;
                 case 'Left' :
-                    if (historyState) moveToPreviousQuestion();
+                    if (history) moveToPreviousQuestion();
                     else console.log('이전 히스토리 없음');
                     break;
             }
         }
-    }, [quizState, connectedDevice, loadNewQuestion, handleAnswer]); // 의존성 배열 업데이트
+    }, [loadNewQuestion, moveToNextQuestion]);
        
     useEffect(() => {
         if (connectedDevice) {
@@ -312,6 +375,45 @@ export default function Quiz() {
     }, [connectedDevice, graphicHex, textHex]);
 
 
+
+
+
+    // --- TTS (음성 합성) 로직 시작 ---
+    const handleSpeakFeedback = useCallback(() => {
+        // 기존에 나오고 있던 음성이 있다면 취소
+        window.speechSynthesis.cancel();
+
+        const textToSpeak = quizStateRef.current.feedbackMessage;
+                
+        // 브라우저 지원 확인
+        if (!window.speechSynthesis) {
+            alert("이 브라우저는 음성 합성을 지원하지 않습니다.");
+            return;
+        }
+
+        const utterance = new SpeechSynthesisUtterance(textToSpeak);
+        utterance.lang = "ko-KR"; // 한국어 설정
+        utterance.rate = playbackRateRef.current; // [수정] 현재 설정된 배속 적용
+        utterance.pitch = 1.0;    // 톤 설정
+
+        window.speechSynthesis.speak(utterance);
+    }, []);
+
+    // 동물이 바뀌거나(animalIdx 변경) 컴포넌트가 언마운트될 때 음성 중지
+        useEffect(() => {
+            if (connectedDevice && quizState.feedbackMessage) {
+                const timer = setTimeout(() => {
+                    handleSpeakFeedback();
+                }, 100);
+            return () => clearTimeout(timer);
+            }
+        }, [quizState.feedbackMessage, connectedDevice, handleSpeakFeedback]);
+    // --- TTS 로직 끝 ---   
+    
+
+
+
+
     // --- 5. UI 렌더링 ---
     return (
         <>
@@ -363,7 +465,7 @@ export default function Quiz() {
 
                 <hr /> 
 
-                {/* ✅ [추가] 테스트 모드 시작 버튼 */}
+                {/* 테스트 모드 시작 버튼 */}
                 {!connectedDevice && (
                     <div style={{ padding: '20px' }}>
                         <p>실물 닷패드 기기가 없으신가요?</p>
@@ -419,6 +521,54 @@ export default function Quiz() {
                 />
                 )}
 
+                {/* --- 음성 설명 버튼 및 텍스트 영역 --- */}
+                <div style={{ margin: "15px 0", padding: "10px", border: "1px solid #ccc", borderRadius: "8px", backgroundColor: "#f9f9f9" }}>
+                    
+                    {/* 음성 듣기 메인 버튼 */}
+                    <button 
+                        onClick={handleSpeakFeedback}
+                        style={{
+                            padding: "10px 20px",
+                            fontSize: "1rem",
+                            cursor: "pointer",
+                            backgroundColor: "#007bff",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "5px",
+                            marginBottom: "10px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "5px",
+                            margin: "0 auto 10px auto" // 아래쪽 여백 추가
+                        }}
+                    >
+                        TTS 출력 버튼
+                    </button>
+
+                {/* [추가] 배속 조절 버튼 영역 */}
+                <div style={{ display: "flex", justifyContent: "center", gap: "10px", marginBottom: "10px" }}>
+                    {[1.0, 2.0, 4.0].map((rate) => (
+                        <button
+                            key={rate}
+                            onClick={() => setPlaybackRate(rate)}
+                            style={{
+                                padding: "5px 10px",
+                                fontSize: "0.8rem",
+                                cursor: "pointer",
+                                // 선택된 배속이면 파란색, 아니면 회색
+                                backgroundColor: playbackRate === rate ? "#0056b3" : "#e0e0e0",
+                                color: playbackRate === rate ? "white" : "#333",
+                                border: "none",
+                                borderRadius: "4px",
+                                transition: "background-color 0.2s"
+                            }}
+                        >
+                            {rate}배속
+                        </button>
+                    ))}
+                </div>
+                </div>        
+                
                 {/* ================= 웹 UI 매핑 테스트 패널 ================= */}
                 <div style={{ marginTop: '30px', padding: '15px', border: '2px dashed blue', background: '#f0f9ff' }}>
                     <h3>매핑 테스트</h3>
