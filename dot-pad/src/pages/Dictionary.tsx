@@ -34,7 +34,7 @@ export default function Dictionary() {
 
   // 버튼을 누를 때마다 동물 이미지를 새로 출력
   useEffect(() => {
-    if (!devices[0]) return;
+    //if (!devices[0]) return;
     const data = AnimalData({animalIdx, buttonName});
     handlePrintImage(data);
   }, [animalIdx, buttonName])
@@ -42,7 +42,7 @@ export default function Dictionary() {
 
   useEffect(() => {
     const targetDevice = devices[0];
-    if (!targetDevice || !targetDevice.connected) return;
+    //if (!targetDevice || !targetDevice.connected) return;
 
     const listener = (keycode: string) => {
       const mappingFunctionKey: Record<string, "f1" | "f2" | "f3" | "f4"> = {
@@ -65,7 +65,11 @@ export default function Dictionary() {
       }
     };
 
-    dotpadsdk.current?.addListenerKeyEvent(targetDevice.target, listener);
+    if (targetDevice) {
+      console.log("Key event 추가")
+      dotpadsdk.current?.addListenerKeyEvent(targetDevice.target, listener);
+    }
+    
 
     return () => {
       if (dotpadsdk.current && (dotpadsdk.current as any).removeListenerKeyEvent) {
@@ -131,7 +135,7 @@ export default function Dictionary() {
 
   const handlePrintError = () => {
     console.error("기기를 못 찾음");
-    alert("기기를 먼저 연결하세요.")
+    //alert("기기를 먼저 연결하세요.")
   }
 
 
