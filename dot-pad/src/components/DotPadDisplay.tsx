@@ -9,7 +9,7 @@ interface DotPadDisplayProps {
  * - 점(핀)은 4px x 4px의 정사각형으로 표현
  * - 눌린 핀은 중앙에 검은 원으로 표시
  */
-export default function DotPadDisplay({ mainData, subData }: DotPadDisplayProps){
+export default function DotPadDisplay({ mainData = "", subData = "" }: DotPadDisplayProps){
   const MAIN_CELL_COLS = 30;
   const MAIN_CELL_ROWS = 10;
   const MAIN_DOTS_X = 60;
@@ -42,7 +42,7 @@ export default function DotPadDisplay({ mainData, subData }: DotPadDisplayProps)
   };
 
   const decodeCell = (hexPair: string): number[][] => {
-    if (hexPair.length !== 2) return Array(4).fill([0, 0]);
+    if (hexPair.length !== 2) return Array.from({ length: 4 }, () => [0, 0]);
     const [rightHex, leftHex] = hexPair.toLowerCase().split("");
     const leftPins = HEX_TO_PINS[leftHex] || [0, 0, 0, 0];
     const rightPins = HEX_TO_PINS[rightHex] || [0, 0, 0, 0];
@@ -62,6 +62,7 @@ export default function DotPadDisplay({ mainData, subData }: DotPadDisplayProps)
     dotsX: number,
     dotsY: number
   ) => {
+    const safeData = data || "";
     const dotsGrid: number[][] = Array.from({ length: dotsY }, () =>
       Array(dotsX).fill(0)
     );
@@ -69,7 +70,7 @@ export default function DotPadDisplay({ mainData, subData }: DotPadDisplayProps)
     for (let cellY = 0; cellY < cellRows; cellY++) {
       for (let cellX = 0; cellX < cellCols; cellX++) {
         const idx = cellY * cellCols + cellX;
-        const hexPair = data.slice(idx * 2, idx * 2 + 2);
+        const hexPair = safeData.slice(idx * 2, idx * 2 + 2);
         const cell = decodeCell(hexPair);
 
         for (let row = 0; row < 4; row++) {

@@ -238,7 +238,14 @@ export function AnimalData({animalIdx, buttonName}: AnimalDataProps): string {
         return "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
     }
 
-    return animalList[animalIdx][buttonName];
+    // 배열 인덱스 범위 검사
+    if (animalIdx < 0 || animalIdx >= animalList.length) {
+        console.warn(`Invalid animalIdx: ${animalIdx}. Must be between 0 and ${animalList.length - 1}`);
+        return "";
+    }
+
+    const animal = animalList[animalIdx];
+    return animal[buttonName] || "";
 }
 
 // text area에 사용할 헥스 코드 모음

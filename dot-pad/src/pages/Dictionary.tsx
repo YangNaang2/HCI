@@ -34,44 +34,57 @@ export default function Dictionary() {
 
   // 버튼을 누를 때마다 동물 이미지를 새로 출력
   useEffect(() => {
-    //if (!devices[0]) return;
+    if (!devices[0] || !devices[0].connected) return;
     const data = AnimalData({animalIdx, buttonName});
-    handlePrintImage(data);
-  }, [animalIdx, buttonName])
-
+    if (data) {
+      handlePrintImage(data);
+    }
+  }, [animalIdx, buttonName, devices])
 
   useEffect(() => {
     const targetDevice = devices[0];
-    //if (!targetDevice || !targetDevice.connected) return;
+    if (!targetDevice || !targetDevice.connected) return;
 
     const listener = (keycode: string) => {
+      console.log('DotPad key event received:', keycode);
+      
+      // DotPad sends numeric codes: 1, 2, 3, 4 for function keys and 0, 5 for panning
       const mappingFunctionKey: Record<string, "f1" | "f2" | "f3" | "f4"> = {
-        "F1": "f1",
-        "F2": "f2",
-        "F3": "f3",
-        "F4": "f4",
-      };
+        "1": "f1",  // F1 버튼
+        "2": "f2",  // F2 버튼
+        "3": "f3",  // F3 버튼
+        "4": "f4"   // F4 버튼
+      }
       const mappingArrowKey: Record<string, "prev" | "next"> = {
-        "P1": "prev",
-        "P2": "next",
-      };
-
-      if (["F1", "F2", "F3", "F4"].includes(keycode)) {
-        const fn = mappingFunctionKey[keycode as keyof typeof mappingFunctionKey];
-        if (fn) onFunctionButtonClick(fn);
-      } else if (["P1", "P2"].includes(keycode)) {
-        const dir = mappingArrowKey[keycode as keyof typeof mappingArrowKey];
-        if (dir) onArrowButtonClick(dir);
+        "0": "prev", // Left/Previous
+        "5": "next"  // Right/Next
+      }
+      
+      if (["1", "2", "3", "4"].includes(keycode)) {
+        console.log("function key 입력:", keycode);
+        const fn = mappingFunctionKey[keycode];
+        if (fn) {
+          console.log("Executing function button click:", fn);
+          onFunctionButtonClick(fn);
+        }
+      } else if (["0", "5"].includes(keycode)) {
+        console.log("arrow key 입력:", keycode);
+        const dir = mappingArrowKey[keycode];
+        if (dir) {
+          console.log("Executing arrow button click:", dir);
+          onArrowButtonClick(dir);
+        }
+      } else {
+        console.log("Unknown keycode:", keycode);
       }
     };
 
-    if (targetDevice) {
-      console.log("Key event 추가")
-      dotpadsdk.current?.addListenerKeyEvent(targetDevice.target, listener);
-    }
-    
+    console.log('Adding key event listener for device:', targetDevice.name);
+    dotpadsdk.current?.addListenerKeyEvent(targetDevice.target, listener);
 
     return () => {
+      console.log('Cleaning up key event listener for device:', targetDevice.name);
+      // Clean up listener on unmount or device change
       if (dotpadsdk.current && (dotpadsdk.current as any).removeListenerKeyEvent) {
         try {
           (dotpadsdk.current as any).removeListenerKeyEvent(targetDevice.target, listener);
@@ -104,11 +117,21 @@ export default function Dictionary() {
     console.log("이미지 출력");
     const targetDevice = devices[0];
     
+    // 데이터 유효성 검사
+    if (!mainDisplayData || typeof mainDisplayData !== 'string') {
+      console.warn("Invalid mainDisplayData:", mainDisplayData);
+      return;
+    }
+    
     //****** 실제 패드 연결시 사용할 부분 *****
-    if (dotpadsdk.current && targetDevice) {
-      //Test.tsx의 이미지 출력 함수 사용
-      await dotpadsdk.current?.displayGraphicData(targetDevice, mainDisplayData); // SDK text 출력 코드
-
+    if (dotpadsdk.current && targetDevice && targetDevice.connected) {
+      try {
+        //Test.tsx의 이미지 출력 함수 사용
+        await dotpadsdk.current.displayGraphicData(targetDevice, mainDisplayData); // SDK text 출력 코드
+      } catch (error) {
+        console.error("SDK error:", error);
+        handlePrintError();
+      }
     } else {
       handlePrintError();
     }
@@ -143,14 +166,18 @@ export default function Dictionary() {
 
   const updateDeviceConnection = async (device: any, connected: any) => {
     if (connected) {
+      console.log('Attempting to connect to device:', device.name);
       const isConnected = await dotpadsdk.current?.connect(device.target);
+      console.log('Connection result:', isConnected);
       if (isConnected) {
-        await dotpadsdk.current?.addListenerKeyEvent(
-          device.target,
-          dotpadKeyCallback
-        );
+        console.log('Device connected successfully:', device.name);
+        // Listener will be added by the useEffect hook
+      } else {
+        console.error('Failed to connect to device:', device.name);
+        return; // Don't update state if connection failed
       }
     } else {
+      console.log('Disconnecting from device:', device.name);
       await dotpadsdk.current?.disconnect(device.target);
     }
     setDevices((devices) =>
@@ -169,9 +196,9 @@ export default function Dictionary() {
     setDevices((currentDevices) => [...currentDevices, deviceInfo]);
   };
  
-  // DotPad function key callback
+  // DotPad function key callback (for debugging)
   const dotpadKeyCallback = async (keyCode: string) => {
-    console.log("=> dotpad key code : " + keyCode);
+    console.log("=> dotpad key code (debug): " + keyCode);
   };
 //----------------------------------------------------------------------
 
