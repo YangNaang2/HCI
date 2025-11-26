@@ -37,6 +37,9 @@ const appendJosa = (word: string, type: '은/는') => {
 
 
 export default function Quiz() {
+    // 모드 관리
+    const [mode, setMode] = useState<'menu' | 'integrated' | 'category'>('menu');
+
     //상태 및 Ref
     const dotpadsdk = useRef<DotPadSDK | null>(null);
     const [devices, setDevices] = useState<Device[]>([]);
@@ -72,11 +75,16 @@ export default function Quiz() {
     const lastKeyTimeRef = useRef<number>(0);
 
     //State 동기화
+    useEffect(() => { playbackRateRef.current = playbackRate; }, [playbackRate]);
     useEffect(() => { quizStateRef.current = quizState; }, [quizState]);
     useEffect(() => { historyStateRef.current = historyState; }, [historyState]);
     useEffect(() => { futureStateRef.current = futureState; }, [futureState]);
 
-
+    // SDK 초기화 및 연결 처리
+    useEffect(() => {
+        dotpadsdk.current = new DotPadSDK();
+    }, []);
+    
     //----로직 함수----
     // 1. 3개의 랜덤한 답안 옵션 생성
     function generateOptions(correctAnswer:string) {
@@ -113,7 +121,7 @@ export default function Quiz() {
 
         setViewMode(validPoses[Math.floor(Math.random()*validPoses.length)]);
 
-        const optionsText = generatedOptions.map((opt, i) => `${i + 1}번 ${opt}`).join(', ');
+        const optionsText = generatedOptions.map((opt, i) => `${numberToHangul(i + 1)}번 ${opt}`).join(', ');
         const navText = isInitial ? "" : "이전 문제를 보려면 왼쪽 화살표를 누르세요.";
 
         setQuizState({
@@ -185,12 +193,13 @@ export default function Quiz() {
 
     
     // --- TTS (음성 합성) 로직 시작 ---
-    const handleSpeakFeedback = useCallback(() => {
+    const handleSpeakFeedback = useCallback((textOverride?: string) => {
         // 기존에 나오고 있던 음성이 있다면 취소
         window.speechSynthesis.cancel();
 
-        const textToSpeak = quizStateRef.current.feedbackMessage;
-                
+        const textToSpeak = textOverride || quizStateRef.current.feedbackMessage;
+        
+        if (!textToSpeak) return;
         // 브라우저 지원 확인
         if (!window.speechSynthesis) {
             alert("이 브라우저는 음성 합성을 지원하지 않습니다.");
@@ -205,13 +214,20 @@ export default function Quiz() {
         window.speechSynthesis.speak(utterance);
     }, []);
 
+    const numberToHangul = (num: number) => {
+        const map = ["일", "이", "삼"]; 
+        return map[num] || num; // 매핑된 게 없으면 그냥 숫자 반환
+    };
+
     // 동물이 바뀌거나(animalIdx 변경) 컴포넌트가 언마운트될 때 음성 중지
     useEffect(() => {
-        if (connectedDevice && quizState.feedbackMessage) {
-            const timer = setTimeout(handleSpeakFeedback, 100);
-            return () => clearTimeout(timer);
+        if (mode === 'integrated' && quizState.feedbackMessage) {
+            const timer = setTimeout(() => {
+                handleSpeakFeedback(quizState.feedbackMessage);
+            }, 100);
+        return () => clearTimeout(timer);
         }
-    }, [quizState.feedbackMessage, connectedDevice, handleSpeakFeedback]);
+    }, [quizState.feedbackMessage, mode, handleSpeakFeedback]);
     // --- TTS 로직 끝 ---   
     
 
@@ -236,7 +252,7 @@ export default function Quiz() {
             setPlaybackRate(nextRate);
             playbackRateRef.current = nextRate;
 
-            handleSpeakFeedback();
+            setTimeout(() => handleSpeakFeedback(), 50);
 
         } else { 
             // 첫 번째 클릭 -> 타이머 시작
@@ -256,7 +272,7 @@ export default function Quiz() {
         const currentQuiz = quizStateRef.current;      
         const currentAnimal= currentQuiz.currentAnimal;
 
-        if (!currentAnimal || !connectedDevice || !dotpadsdk.current) return; // 퀴즈 시작 전이거나 기기 연결 안되면 무시
+        if (mode !== 'integrated' || !currentAnimal ) return; // 퀴즈 시작 전이거나 기기 연결 안되면 무시
         
         // F4 처리 로직
         if (keyCode === 'F4') { 
@@ -282,19 +298,16 @@ export default function Quiz() {
                 case 'Left' : if (historyStateRef.current) moveToPreviousQuestion(); break;
             }
         }
-    }, [connectedDevice, handleF4Key, handleAnswer, moveToNextQuestion]);
+    }, [mode, handleF4Key, handleAnswer, moveToNextQuestion, moveToPreviousQuestion]);
        
     useEffect(() => {
         if (connectedDevice) {
             console.log("기기가 연결되었습니다. 첫 문제를 로드합니다.");
             loadNewQuestion(true);
         }
-    }, [connectedDevice, loadNewQuestion]); // connectedDevice나 loadNewQuestion이 변경될 때 실행
+    }, [connectedDevice, loadNewQuestion]);
 
-    // SDK 초기화 및 연결 처리
-    useEffect(() => {
-        dotpadsdk.current = new DotPadSDK();
-    }, []);
+    
 
     // 닷패드 데이터 전송
     const graphicHex = quizState.currentAnimal ? quizState.currentAnimal[viewMode] : "";
@@ -349,95 +362,90 @@ export default function Quiz() {
         setDevices((currentDevices) => [...currentDevices, deviceInfo]);
       };
 
-    const handleStartTestMode = () => {
-        console.log("Starting Test Mode...");
-        const mockDevice = {
-            target: "mock-device" as any,
-            name: "Test Device",
-            connected: true,
-        } as Device;
-        setConnectedDevice(mockDevice);
-        
-        setDevices([mockDevice]);
+    const startIntegratedMode = () => {
+        setMode('integrated');
+        loadNewQuestion(true);
     };
-    
 
+    const startCategoryMode = () => {
+        setMode('category');
+    };
 
-    
+    const goBackToMenu = () => {
+        setMode('menu');
+        window.speechSynthesis.cancel();
+    };
 
 
     // ---- UI 렌더링 ----
     return (
-        <>
-            <div className="App">
-                <h2>Dot Pad Display Test</h2>
-                    <div className="buttonContainer">
-                        <button className="selectButton" onClick={handleSelectDevice}>
+        <div className="App">
+            <h2>동물 퀴즈</h2>
+            <div className="connection-panel" style={{marginBottom: '20px', padding: '10px', borderBottom: '1px solid #ddd'}}>
+                <div className = "buttonContainer">
+                    <button className="selectButton" onClick={() => handleSelectDevice()}>
                             Select DotPad
-                        </button>
-                    </div>
-                    <table className="table">
-                <thead>
-                    <tr>
-                        <th className="header">DotPad Name</th>
-                        <th className="header">Connect/Disconnect</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {devices.map((device) => (
-                        <tr key={device.name} className="row">
-                            <td className="cell">{device.name}</td>
-                            <td className="cell">
-                                {!device.connected && (
-                                    <button
-                                        className="button"
-                                        onClick={() => updateDeviceConnection(device, true)}
-                                    >   
-                                        Connect
+                    </button>
+                </div>
+                <table className="table">
+                    <thead>
+                        <tr><th>DotPad Name</th><th>Connect/Disconnect</th></tr>
+                    </thead>
+                    <tbody>
+                        {devices.map((device) => (
+                            <tr key={device.name} className="row">
+                                <td className="cell">{device.name}</td>
+                                <td className="cell">
+                                    <button className="button" onClick={() => updateDeviceConnection(device, !device.connected)}>   
+                                        {device.connected ? "연결 해제" : "연결"}
                                     </button>
-                                )}
-                                {device.connected && (
-                                    <button
-                                        className="button"
-                                        onClick={() => updateDeviceConnection(device, false)}
-                                    >
-                                        Disconnect
-                                    </button>
-                                )}
-                            </td>
-                        </tr>
-                    ))}
+                                </td>
+                            </tr>
+                        ))}
                 </tbody>
             </table>
             </div>
+            {mode === 'menu' && (
+                <div className="menu-container" style= {{display: 'flex', gap:'20px', justifyContent:'center', marginTop:'50px'}}>
+                <button
+                    onClick={startIntegratedMode}
+                    style={{padding:'30px', fontSize:'1.5rem', cursor:'pointer', borderRadius:'15px', background:'#4CAF50', color:'white', border:'none'}}
+                >
+                    통합 모드<br/><span style={{fontSize:'1rem'}}>(모든 종류의 동물들을 대상으로 퀴즈를 냅니다.)</span>
+                </button>
+                    
+                <button
+                    onClick={startCategoryMode}
+                    style={{padding:'30px', fontSize:'1.5rem', cursor:'pointer', borderRadius:'15px', background:'#4CAF50', color:'white', border:'none'}}
+                >
+                    카테고리 모드<br/><span style={{fontSize:'1rem'}}>(원하는 종을 선택하여 퀴즈를 냅니다.)</span>
+                </button>    
+            </div>
+        )}
+        {mode === 'integrated' && (
             <div className="quiz-container">
-                <h2>동물 퀴즈</h2>
-                
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                    <h2>통합 모드 랜덤 퀴즈</h2>
+                    <button onClick={goBackToMenu} style={{padding:'5px 10px', background:'#888', color:'white', border:'none', borderRadius:'5px'}}>
+                        메뉴로 나가기
+                    </button>
+                </div>
                 <hr /> 
 
-                {!connectedDevice && (
-                    <div style={{ padding: '20px' }}>
-                        <p>실물 닷패드 기기가 없으신가요?</p>
-                        <button className="button" onClick={handleStartTestMode}>
-                            웹 UI 테스트 모드 시작
-                        </button>
-                    </div>
-                )}
-
                 {/* 퀴즈 디스플레이 영역 */}
-                {connectedDevice && quizState.currentAnimal ? (
+                {quizState.currentAnimal ? (
                     <div className="quiz-area">
-                    <DotPadDisplay
-                        mainData={graphicHex}
-                        subData={testHex ?? textHex} // 테스트용 헥스 추가
-                />
+                        <DotPadDisplay
+                            mainData={graphicHex}
+                            subData={testHex ?? textHex} // 테스트용 헥스 추가
+                        />
                     
-                    {/* 사용자 컨트롤 영역 (웹 UI 버튼) */}
-                    <div className="controls-area">
-                    <p>{quizState.feedbackMessage}</p> {/* 화면에 텍스트 피드백 */}
+                        {/* 사용자 컨트롤 영역 (웹 UI 버튼) */}
+                        <div className="controls-area">
+                            <p>{quizState.feedbackMessage}</p> {/* 화면에 텍스트 피드백 */}
                     
-                    {!quizState.isAnswered ? (
-                        // 상태 1: 답 선택 전
+                            {!quizState.isAnswered ? (
+                                // 상태 1: 답 선택 전
                         <div className="options-container">
                         </div>
                     ) : (
@@ -445,9 +453,7 @@ export default function Quiz() {
                         <div className="next-question-container">
                         {quizState.isCorrect ? (
                             // 정답 맞췄을 때
-                            <>
-                            
-                            </>
+                            <></>
                         ) : (
                             <button className="button" onClick={() => loadNewQuestion(false)}>
                             다음 문제 (→)
@@ -455,7 +461,6 @@ export default function Quiz() {
                         )}
                         </div>
                     )}
-                    {/*</div>button className="button" onClick={() => dotpadKeyCallback('F4')}>종료 (F4)</button>*/}
                     </div>
                 </div>
                 ) : (
@@ -463,19 +468,19 @@ export default function Quiz() {
                 )}
 
                 {/* DotPad 물리적 버튼 매핑 (UI 없이 기능만) */}
-                {connectedDevice && (
-                <DotPadButtons 
-                    onArrowButtonClick={(key) => dotpadKeyCallback(key === 'next' ? 'Right' : 'Left')}
-                    onFunctionButtonClick={(key) => dotpadKeyCallback(key.toUpperCase())} 
-                />
-                )}
+                <div style= {{marginTop: '20px'}}>
+                    <DotPadButtons 
+                        onArrowButtonClick={(key) => dotpadKeyCallback(key === 'next' ? 'Right' : 'Left')}
+                        onFunctionButtonClick={(key) => dotpadKeyCallback(key.toUpperCase())} 
+                    />
+                </div>
 
                 {/* --- 음성 설명 버튼 및 텍스트 영역 --- */}
                 <div style={{ margin: "15px 0", padding: "10px", border: "1px solid #ccc", borderRadius: "8px", backgroundColor: "#f9f9f9" }}>
                     
                     {/* 음성 듣기 메인 버튼 */}
                     <button 
-                        onClick={handleSpeakFeedback}
+                        onClick={() => handleSpeakFeedback()}
                         style={{
                             padding: "10px 20px",
                             fontSize: "1rem",
@@ -538,11 +543,17 @@ export default function Quiz() {
                         <span>입력하는 대로 바로 위에 뜸</span>
                     </div>
                 </div>
-                {/* ========================================================== */}
 
             </div>
-        </>
-    );
         
-    
+    )}
+    {mode === 'category' && (
+        <div style={{textAlign:'center', marginTop:'50px'}}>
+                    <h3>카테고리 모드</h3>
+                    <p>준비 중</p>
+                    <button onClick={goBackToMenu} className="button">메뉴로 돌아가기</button>
+                </div>
+            )}
+        </div>
+    );
 }
