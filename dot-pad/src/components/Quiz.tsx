@@ -21,6 +21,7 @@ interface QuizProps {
   dotpadsdk: React.RefObject<DotPadSDK | null>;
   devices: Device[];
   setDevices: React.Dispatch<React.SetStateAction<Device[]>>;
+  mainDisplayData: string
 }
 
 
@@ -42,12 +43,13 @@ const appendJosa = (word: string, type: '은/는') => {
 // ------------------------------------------------------------------------------------
 
 
-export default function Quiz({ dotpadsdk, devices, setDevices }: QuizProps) {
+export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }: QuizProps) {
     // 모드 관리
     const [mode, setMode] = useState<'menu' | 'integrated' | 'category'>('menu');
 
     //상태 및 Ref
-    const [connectedDevice, setConnectedDevice] = useState<Device | null>(null);
+    const connectedDevice = devices[0];
+    //const [connectedDevice, setConnectedDevice] = useState<Device | null>(null);
     const [viewMode, setViewMode] = useState<"f1" | "f2" | "f3"> ("f1"); 
 
     //히스토리 관리
@@ -329,6 +331,7 @@ export default function Quiz({ dotpadsdk, devices, setDevices }: QuizProps) {
         if (!connectedDevice || !dotpadsdk.current) return;
         const updateDotPad = async () => {
             // 1. 그래픽(이미지) 전송
+            mainDisplayData = graphicHex
             if (graphicHex) await dotpadsdk.current?.displayGraphicData(connectedDevice.target, graphicHex);
             // 2. 텍스트(점자) 전송
             if (textHex) await dotpadsdk.current?.displayTextData(connectedDevice.target, textHex);
@@ -337,35 +340,6 @@ export default function Quiz({ dotpadsdk, devices, setDevices }: QuizProps) {
     }, [connectedDevice, graphicHex, textHex]);
     
     // ---- UI ----
-    const updateDeviceConnection = async (device: any, connected: any) => {
-        if (connected) {
-          const isConnected = await dotpadsdk.current?.connect(device.target);
-          if (isConnected) {
-            await dotpadsdk.current?.addListenerKeyEvent(
-              device.target,
-              dotpadKeyCallback
-            );
-            setConnectedDevice(device);
-          }
-        } else {
-          await dotpadsdk.current?.disconnect(device.target);
-          setConnectedDevice(null);
-        }
-        setDevices((devices) =>
-          devices.map((d) => (d.name === device.name ? { ...d, connected } : d))
-        );
-      };
-    
-      const handleSelectDevice = async () => {
-        const device = await dotpadsdk.current?.request(); 
-        const deviceInfo = {
-          target: device,
-          name: device.name,
-          connected: false,
-        };
-        setDevices((currentDevices) => [...currentDevices, deviceInfo]);
-      };
-
     const startIntegratedMode = () => {
         setMode('integrated');
         loadNewQuestion(true);

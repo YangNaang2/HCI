@@ -42,7 +42,7 @@ export default function Dictionary() {
     if (data) {
       handlePrintImage(data);
     }
-  }, [animalIdx, buttonName, devices])
+  }, [mainDisplayData, devices])
 
 
   // key listener 추가
@@ -207,6 +207,7 @@ export default function Dictionary() {
             dotpadsdk={dotpadsdk}
             devices={devices}
             setDevices={setDevices}
+            mainDisplayData={mainDisplayData}
           />
         ) : (
           <div>
