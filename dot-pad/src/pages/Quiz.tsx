@@ -121,7 +121,7 @@ export default function Quiz() {
 
         setViewMode(validPoses[Math.floor(Math.random()*validPoses.length)]);
 
-        const optionsText = generatedOptions.map((opt, i) => `${numberToHangul(i + 1)}번 ${opt}`).join(', ');
+        const optionsText = generatedOptions.map((opt, i) => `${i + 1}번 ${opt}`).join(', ');
         const navText = isInitial ? "" : "이전 문제를 보려면 왼쪽 화살표를 누르세요.";
 
         setQuizState({
@@ -216,7 +216,7 @@ export default function Quiz() {
 
     const numberToHangul = (num: number) => {
         const map = ["일", "이", "삼"]; 
-        return map[num] || num; // 매핑된 게 없으면 그냥 숫자 반환
+        return map[num-1] || num; // 매핑된 게 없으면 그냥 숫자 반환
     };
 
     // 동물이 바뀌거나(animalIdx 변경) 컴포넌트가 언마운트될 때 음성 중지
