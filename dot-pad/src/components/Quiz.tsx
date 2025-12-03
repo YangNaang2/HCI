@@ -15,6 +15,8 @@ interface QuizState {
     isAnswered: boolean; //사용자가 답을 선택했는지 여부
     isCorrect: boolean; //사용자의 답이 정답인지
     feedbackMessage: string; 
+    viewMode?: "f1" | "f2" | "f3";
+    questionNumber: number;
 }
 
 interface QuizProps {
@@ -66,13 +68,19 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
         correctAnswer: "",
         isAnswered: false, 
         isCorrect: false,
-        feedbackMessage: "Dot Pad 연결"
+        feedbackMessage: "Dot Pad 연결",
+        questionNumber: 1,
     });
 
+    // 카테고리 모드 관련
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const categories = Array.from(new Set(animalList.map(a => a.category).filter(Boolean))) as string[];
+    
     //Refs
     const quizStateRef = useRef(quizState);
     const historyStateRef = useRef<QuizState | null>(null);
     const futureStateRef = useRef(futureState);
+    const questionCounterRef = useRef(1);
 
     // 배속 및 타이머 관리
     const [playbackRate, setPlaybackRate] = useState<number>(1.0);
@@ -93,12 +101,12 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
     
     //----로직 함수----
     // 1. 3개의 랜덤한 답안 옵션 생성
-    function generateOptions(correctAnswer:string) {
+    function generateOptions(correctAnswer:string, candidateList: Animal[]) {
         let options = [correctAnswer];
-        let animalNames = animalList.map(animal => animal.name);
+        let candidateNames = candidateList.map(animal => animal.name);
         while (options.length < 3) {
-            const randomIndex = Math.floor(Math.random() * animalNames.length);
-            const randomAnimalName = animalNames[randomIndex];
+            const randomIndex = Math.floor(Math.random() * candidateNames.length);
+            const randomAnimalName = candidateNames[randomIndex];
             if (!options.includes(randomAnimalName)) {
                 options.push(randomAnimalName);
             }
@@ -113,11 +121,27 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
 
     // 2. 새 문제 불러오기
     const loadNewQuestion = useCallback((isInitial: boolean = false) => {
-        const validAnimals = animalList.filter(a => a.name && a.f1); 
-        if (validAnimals.length === 0) return;
+        console.log(`loadNewQuestion 호출됨. isInitial: ${isInitial}`);
+        let targetList = animalList;
 
-        const correctAnimal = validAnimals[Math.floor(Math.random() * animalList.length)];
-        const generatedOptions = generateOptions(correctAnimal.name); 
+        if (mode === 'category' && selectedCategory) {
+            targetList = animalList.filter(a => a.category === selectedCategory);
+        }
+
+        const validAnimals = targetList.filter(a => a.name && a.f1); 
+
+        const correctAnimal = validAnimals[Math.floor(Math.random() * validAnimals.length)];
+        const generatedOptions = generateOptions(correctAnimal.name, validAnimals); 
+
+        let nextNumber;
+        if (isInitial) {
+            questionCounterRef.current = 1;
+            nextNumber = 1;
+        } else {
+            questionCounterRef.current += 1;
+            nextNumber = questionCounterRef.current;
+            console.log(`이전 번호: ${nextNumber -1}, 이번 번호: ${nextNumber}`)
+        }
 
         //유효한 포즈 중 하나 랜덤 선택
         const validPoses: ("f1" | "f2" | "f3")[] = [];
@@ -125,7 +149,8 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
         if (correctAnimal.f2 && correctAnimal.f2.length > 10) validPoses.push("f2");
         if (correctAnimal.f3 && correctAnimal.f3.length > 10) validPoses.push("f3");
 
-        setViewMode(validPoses[Math.floor(Math.random()*validPoses.length)]);
+        const randomPose = validPoses[Math.floor(Math.random()*validPoses.length)]
+        setViewMode(randomPose);
 
         const optionsText = generatedOptions.map((opt, i) => `${numberToHangul(i + 1)}번 ${opt}`).join(', ');
         const navText = isInitial ? "" : "이전 문제를 보려면 왼쪽 화살표를 누르세요.";
@@ -136,36 +161,38 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
             correctAnswer: correctAnimal.name,
             isAnswered: false,
             isCorrect: false,
-            feedbackMessage: `무슨 동물일까요? ${optionsText}. ${navText}`
+            feedbackMessage: `무슨 동물일까요? ${optionsText}. ${navText}`,
+            viewMode: randomPose,
+            questionNumber: nextNumber
         });
-    }, []);
+    }, [mode, selectedCategory]);
 
     // 3. 다음 문제 / 이전 문제 이동
-    const moveToNextQuestion = () => {
+    const moveToNextQuestion = useCallback(() => {
         if (futureStateRef.current) {
             console.log("원래 문제로 돌아옵니다")
             setQuizState(futureStateRef.current);
             setFutureState(null);
-            setViewMode("f1");
+            setViewMode(futureStateRef.current.viewMode || "f1");
             return;
         }
         if (quizStateRef.current.isAnswered && quizStateRef.current.isCorrect) {
             setHistoryState(quizStateRef.current);
         }
         loadNewQuestion(false);
-    };
+    }, [loadNewQuestion]);
 
-    const moveToPreviousQuestion = () => {
+    const moveToPreviousQuestion = useCallback(() => {
         if (historyStateRef.current) {
             console.log("이전 문제로 돌아갑니다");
             setFutureState(quizStateRef.current);
             setQuizState(historyStateRef.current);
             setViewMode("f1");
         }
-    };
+    }, []);
 
     // 4. 정답 확인
-    const handleAnswer = async (selectedAnswer: string) => {
+    const handleAnswer = useCallback(async (selectedAnswer: string) => {
         const currentQuiz = quizStateRef.current;
         if (currentQuiz.isAnswered) return;
 
@@ -173,10 +200,11 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
 
         if (isCorrect) {
             const animal = currentQuiz.currentAnimal;
+            const numAnswer = `. ${animal}`
             const poseText = [
-                `1번 ${(animal?.f1 && animal.f1.length > 10) ? animal.pose1 : '없음'}`,
-                `2번 ${(animal?.f2 && animal.f2.length > 10) ? animal.pose2 : '없음'}`,
-                `3번 ${(animal?.f3 && animal.f3.length > 10) ? animal.pose3 : '없음'}`
+                `일번 ${(animal?.f1 && animal.f1.length > 10) ? animal.pose1 : '없음'}`,
+                `이번 ${(animal?.f2 && animal.f2.length > 10) ? animal.pose2 : '없음'}`,
+                `삼번 ${(animal?.f3 && animal.f3.length > 10) ? animal.pose3 : '없음'}`
             ].join(', ');
     
         setQuizState(prev => ({
@@ -187,15 +215,16 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
         }));
     
         } else {
-            const optionsText = currentQuiz.options.map((opt, i) => `${i+1}번 ${opt}`).join(', ');
+            console.log("현재 historyRef값:", historyStateRef.current);
+            const optionsText = currentQuiz.options.map((opt, i) => `${numberToHangul(i + 1)}번 ${opt}`).join(', ');
             const navText = historyStateRef.current ? "이전 문제를 보려면 왼쪽 화살표를 누르세요." : "";
             setQuizState(prev => ({
                 ...prev,
                 isCorrect: false, // 오답 플래그 (필요하다면)
-                feedbackMessage: `땡! ${appendJosa(selectedAnswer, '은/는')} 오답입니다. 다시 시도하세요. ${optionsText}. ${navText}`, // 화면 UI에만 "오답" 표시
+                feedbackMessage: `땡! ${appendJosa(selectedAnswer, '은/는')} 오답입니다. 다시 시도하세요. ${optionsText}. ${navText}`,
             }));
         }
-    };
+    }, []);
 
     
     // --- TTS (음성 합성) 로직 시작 ---
@@ -222,12 +251,12 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
 
     const numberToHangul = (num: number) => {
         const map = ["일", "이", "삼"]; 
-        return map[num] || num; // 매핑된 게 없으면 그냥 숫자 반환
+        return map[num-1] || num; // 매핑된 게 없으면 그냥 숫자 반환
     };
 
     // 동물이 바뀌거나(animalIdx 변경) 컴포넌트가 언마운트될 때 음성 중지
     useEffect(() => {
-        if (mode === 'integrated' && quizState.feedbackMessage) {
+        if (quizState.feedbackMessage && (mode === 'integrated' || (mode === 'category' && selectedCategory))) {
             const timer = setTimeout(() => {
                 handleSpeakFeedback(quizState.feedbackMessage);
             }, 100);
@@ -278,7 +307,7 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
         const currentQuiz = quizStateRef.current;      
         const currentAnimal= currentQuiz.currentAnimal;
 
-        if (mode !== 'integrated' || !currentAnimal ) return; // 퀴즈 시작 전이거나 기기 연결 안되면 무시
+        if ((mode !== 'integrated' && mode !== 'category') || !currentAnimal ) return; // 퀴즈 시작 전이거나 기기 연결 안되면 무시
         
         // F4 처리 로직
         if (keyCode === 'F4') { 
@@ -307,25 +336,40 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
     }, [mode, handleF4Key, handleAnswer, moveToNextQuestion, moveToPreviousQuestion]);
        
     useEffect(() => {
-        if (connectedDevice) {
-            console.log("기기가 연결되었습니다. 첫 문제를 로드합니다.");
-            loadNewQuestion(true);
+        if (mode ==='integrated') {
+            if (!quizState.currentAnimal) loadNewQuestion(true);
         }
-    }, [connectedDevice, loadNewQuestion]);
+        else if (mode === 'category' && selectedCategory) {
+            if (!quizState.currentAnimal) loadNewQuestion(true);
+        }
+    }, [connectedDevice, loadNewQuestion, mode, selectedCategory]);
 
     
 
     // 닷패드 데이터 전송
+    const numberToBrailleKeys = (num: number): string[] => {
+        const numStr = num.toString();
+        const result = ["num"]
+
+        for (let char of numStr) {
+            result.push(char);
+        }
+
+        return result;
+    };
     const graphicHex = quizState.currentAnimal ? quizState.currentAnimal[viewMode] : "";
     const textHex = textToBrailleHex(
         !quizState.isAnswered
-        ? quizState.options // 퀴즈 중일 땐 보기 텍스트
-        : [ // 정답 후엔 포즈 이름 텍스트
-            (quizState.currentAnimal?.f1 && quizState.currentAnimal.f1.length > 10) ? quizState.currentAnimal.pose1 : "없음",
-            (quizState.currentAnimal?.f2 && quizState.currentAnimal.f1.length > 10) ? quizState.currentAnimal.pose2 : "없음",
-            (quizState.currentAnimal?.f3 && quizState.currentAnimal.f1.length > 10) ? quizState.currentAnimal.pose3 : "없음",
-        ]
+        ? [// 정답 전엔 '(문제번호) 무엇일까요?
+            ...numberToBrailleKeys(quizState.questionNumber),
+            " ",
+             "무엇일까요"] 
+        :  [// 정답 후엔 '(문제번호) (정답동물이름)'
+            ...numberToBrailleKeys(quizState.questionNumber),
+            " ", 
+            quizState.currentAnimal?.name || ""]
     );
+
 
     useEffect(() => {
         if (!connectedDevice || !dotpadsdk.current) return;
@@ -346,12 +390,28 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
     };
 
     const startCategoryMode = () => {
+        setQuizState(prev => ({ ...prev, feedbackMessage: ""}));
         setMode('category');
     };
 
     const goBackToMenu = () => {
-        setMode('menu');
         window.speechSynthesis.cancel();
+        setMode('menu');
+        setSelectedCategory(null);
+
+        setQuizState({
+            currentAnimal : null,
+            options: [],
+            correctAnswer: "",
+            isAnswered: false,
+            isCorrect: false,
+            feedbackMessage: "",
+            questionNumber: 1,
+        });
+        
+        setViewMode("f1");
+        setHistoryState(null);
+        setFutureState(null);
     };
 
 
@@ -376,10 +436,12 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
                 </button>    
             </div>
         )}
-        {mode === 'integrated' && (
+        {(mode === 'integrated' || (mode === 'category' && selectedCategory)) && (
             <div className="quiz-container">
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                    <h2>통합 모드 랜덤 퀴즈</h2>
+                    <h2>
+                        {mode === 'integrated' ? '통합 모드 랜덤 퀴즈' : `카테고리: ${selectedCategory}`}
+                        </h2>
                     <button onClick={goBackToMenu} style={{padding:'5px 10px', background:'#888', color:'white', border:'none', borderRadius:'5px'}}>
                         메뉴로 나가기
                     </button>
@@ -501,11 +563,26 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
             </div>
         
     )}
-    {mode === 'category' && (
+    {mode === 'category' && !selectedCategory && (
         <div style={{textAlign:'center', marginTop:'50px'}}>
-                    <h3>카테고리 모드</h3>
-                    <p>준비 중</p>
-                    <button onClick={goBackToMenu} className="button">메뉴로 돌아가기</button>
+            <h3>카테고리를 선택하세요</h3>
+            <div style={{display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap'}}>
+                {categories.map((cat) => (
+                    <button
+                        key={cat}
+                        onClick={() => {
+                            setSelectedCategory(cat);
+                        }}
+                        style={{padding:'15px 25px', fontSize:'1.2rem', borderRadius:'10px', cursor:'pointer'}}
+                    >
+                        {cat}
+                    </button>
+                    ))}
+                </div>
+                <br/>
+                <button onClick={goBackToMenu} style={{padding:'5px 10px', background:'#888', color:'white', border:'none', borderRadius:'5px'}}>
+                    메뉴로 나가기
+                </button>
                 </div>
             )}
         </div>
