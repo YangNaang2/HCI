@@ -273,6 +273,20 @@ export function AnimalData({animalIdx, buttonName}: AnimalDataProps): string {
 // text area에 사용할 헥스 코드 모음
 export const brailleMap: {[key: string]: string } = {
 
+	"무엇일까요": "21151604250204104354",
+	"num": "74",
+	"1": "01",
+	"2": "03",
+	"3": "11",
+	"4": "31",
+	"5": "21",
+	"6": "13",
+	"7": "33",
+	"8": "23",
+	"9": "12",
+	"0": "32",
+
+	
 	" " : "00",
 
 	"독수리": "12450140152025",

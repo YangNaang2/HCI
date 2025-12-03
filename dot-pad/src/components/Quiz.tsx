@@ -16,6 +16,7 @@ interface QuizState {
     isCorrect: boolean; //사용자의 답이 정답인지
     feedbackMessage: string; 
     viewMode?: "f1" | "f2" | "f3";
+    questionNumber: number;
 }
 
 interface QuizProps {
@@ -67,17 +68,19 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
         correctAnswer: "",
         isAnswered: false, 
         isCorrect: false,
-        feedbackMessage: "Dot Pad 연결"
+        feedbackMessage: "Dot Pad 연결",
+        questionNumber: 1,
     });
 
     // 카테고리 모드 관련
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const categories = Array.from(new Set(animalList.map(a => a.category).filter(Boolean))) as string[];
-
+    
     //Refs
     const quizStateRef = useRef(quizState);
     const historyStateRef = useRef<QuizState | null>(null);
     const futureStateRef = useRef(futureState);
+    const questionCounterRef = useRef(1);
 
     // 배속 및 타이머 관리
     const [playbackRate, setPlaybackRate] = useState<number>(1.0);
@@ -118,6 +121,7 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
 
     // 2. 새 문제 불러오기
     const loadNewQuestion = useCallback((isInitial: boolean = false) => {
+        console.log(`loadNewQuestion 호출됨. isInitial: ${isInitial}`);
         let targetList = animalList;
 
         if (mode === 'category' && selectedCategory) {
@@ -128,6 +132,16 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
 
         const correctAnimal = validAnimals[Math.floor(Math.random() * validAnimals.length)];
         const generatedOptions = generateOptions(correctAnimal.name, validAnimals); 
+
+        let nextNumber;
+        if (isInitial) {
+            questionCounterRef.current = 1;
+            nextNumber = 1;
+        } else {
+            questionCounterRef.current += 1;
+            nextNumber = questionCounterRef.current;
+            console.log(`이전 번호: ${nextNumber -1}, 이번 번호: ${nextNumber}`)
+        }
 
         //유효한 포즈 중 하나 랜덤 선택
         const validPoses: ("f1" | "f2" | "f3")[] = [];
@@ -148,12 +162,13 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
             isAnswered: false,
             isCorrect: false,
             feedbackMessage: `무슨 동물일까요? ${optionsText}. ${navText}`,
-            viewMode: randomPose
+            viewMode: randomPose,
+            questionNumber: nextNumber
         });
     }, [mode, selectedCategory]);
 
     // 3. 다음 문제 / 이전 문제 이동
-    const moveToNextQuestion = () => {
+    const moveToNextQuestion = useCallback(() => {
         if (futureStateRef.current) {
             console.log("원래 문제로 돌아옵니다")
             setQuizState(futureStateRef.current);
@@ -165,19 +180,19 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
             setHistoryState(quizStateRef.current);
         }
         loadNewQuestion(false);
-    };
+    }, [loadNewQuestion]);
 
-    const moveToPreviousQuestion = () => {
+    const moveToPreviousQuestion = useCallback(() => {
         if (historyStateRef.current) {
             console.log("이전 문제로 돌아갑니다");
             setFutureState(quizStateRef.current);
             setQuizState(historyStateRef.current);
             setViewMode("f1");
         }
-    };
+    }, []);
 
     // 4. 정답 확인
-    const handleAnswer = async (selectedAnswer: string) => {
+    const handleAnswer = useCallback(async (selectedAnswer: string) => {
         const currentQuiz = quizStateRef.current;
         if (currentQuiz.isAnswered) return;
 
@@ -185,6 +200,7 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
 
         if (isCorrect) {
             const animal = currentQuiz.currentAnimal;
+            const numAnswer = `. ${animal}`
             const poseText = [
                 `일번 ${(animal?.f1 && animal.f1.length > 10) ? animal.pose1 : '없음'}`,
                 `이번 ${(animal?.f2 && animal.f2.length > 10) ? animal.pose2 : '없음'}`,
@@ -208,7 +224,7 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
                 feedbackMessage: `땡! ${appendJosa(selectedAnswer, '은/는')} 오답입니다. 다시 시도하세요. ${optionsText}. ${navText}`,
             }));
         }
-    };
+    }, []);
 
     
     // --- TTS (음성 합성) 로직 시작 ---
@@ -321,26 +337,39 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
        
     useEffect(() => {
         if (mode ==='integrated') {
-if          (!quizState.currentAnimal) loadNewQuestion(true);
+            if (!quizState.currentAnimal) loadNewQuestion(true);
         }
         else if (mode === 'category' && selectedCategory) {
-            loadNewQuestion(true);
+            if (!quizState.currentAnimal) loadNewQuestion(true);
         }
     }, [connectedDevice, loadNewQuestion, mode, selectedCategory]);
 
     
 
     // 닷패드 데이터 전송
+    const numberToBrailleKeys = (num: number): string[] => {
+        const numStr = num.toString();
+        const result = ["num"]
+
+        for (let char of numStr) {
+            result.push(char);
+        }
+
+        return result;
+    };
     const graphicHex = quizState.currentAnimal ? quizState.currentAnimal[viewMode] : "";
     const textHex = textToBrailleHex(
         !quizState.isAnswered
-        ? quizState.options // 퀴즈 중일 땐 보기 텍스트
-        : [ // 정답 후엔 포즈 이름 텍스트
-            (quizState.currentAnimal?.f1 && quizState.currentAnimal.f1.length > 10) ? quizState.currentAnimal.pose1 : "없음",
-            (quizState.currentAnimal?.f2 && quizState.currentAnimal.f1.length > 10) ? quizState.currentAnimal.pose2 : "없음",
-            (quizState.currentAnimal?.f3 && quizState.currentAnimal.f1.length > 10) ? quizState.currentAnimal.pose3 : "없음",
-        ]
+        ? [// 정답 전엔 '(문제번호) 무엇일까요?
+            ...numberToBrailleKeys(quizState.questionNumber),
+            " ",
+             "무엇일까요"] 
+        :  [// 정답 후엔 '(문제번호) (정답동물이름)'
+            ...numberToBrailleKeys(quizState.questionNumber),
+            " ", 
+            quizState.currentAnimal?.name || ""]
     );
+
 
     useEffect(() => {
         if (!connectedDevice || !dotpadsdk.current) return;
@@ -376,7 +405,8 @@ if          (!quizState.currentAnimal) loadNewQuestion(true);
             correctAnswer: "",
             isAnswered: false,
             isCorrect: false,
-            feedbackMessage: ""
+            feedbackMessage: "",
+            questionNumber: 1,
         });
         
         setViewMode("f1");
