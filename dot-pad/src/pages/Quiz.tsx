@@ -264,6 +264,29 @@ export default function Quiz() {
         }
     }, [handleSpeakFeedback]);
 
+    // 키 코드 변환 함수 (기기에서 오는 숫자 키 코드를 변환)
+    const mapKeyCode = useCallback((keyCode: string): string => {
+        const mappingFunctionKey: Record<string, "F1" | "F2" | "F3" | "F4"> = {
+            "1": "F1",  // F1 버튼
+            "2": "F2",  // F2 버튼
+            "3": "F3",  // F3 버튼
+            "4": "F4"   // F4 버튼
+        };
+        const mappingArrowKey: Record<string, "Left" | "Right"> = {
+            "0": "Left",  // left
+            "5": "Right"  // right
+        };
+
+        // 숫자 키 코드를 변환 (웹 UI에서는 이미 변환된 키 코드가 올 수 있음)
+        if (mappingFunctionKey[keyCode]) {
+            return mappingFunctionKey[keyCode];
+        } else if (mappingArrowKey[keyCode]) {
+            return mappingArrowKey[keyCode];
+        }
+        // 이미 변환된 키 코드이거나 다른 키 코드인 경우 그대로 반환
+        return keyCode;
+    }, []);
+
     const dotpadKeyCallback = useCallback(async (keyCode: string) => {
         const now = Date.now();
         if (now - lastKeyTimeRef.current < 100) return;
@@ -274,31 +297,34 @@ export default function Quiz() {
 
         if (mode !== 'integrated' || !currentAnimal ) return; // 퀴즈 시작 전이거나 기기 연결 안되면 무시
         
+        // 키 코드 변환 (기기에서 오는 숫자 키 코드를 변환)
+        const mappedKeyCode = mapKeyCode(keyCode);
+        
         // F4 처리 로직
-        if (keyCode === 'F4') { 
+        if (mappedKeyCode === 'F4') { 
             handleF4Key(); 
             return ; }
 
         // 상태 2: 정답을 맞춘 후
         if (currentQuiz.isAnswered) { 
-            switch (keyCode) {
+            switch (mappedKeyCode) {
                 case 'F1' : if (currentAnimal?.f1) setViewMode('f1'); break;
-                case 'F2' : if (currentAnimal?.f1) setViewMode('f2'); break;
-                case 'F3' : if (currentAnimal?.f1) setViewMode('f3'); break;
+                case 'F2' : if (currentAnimal?.f2) setViewMode('f2'); break;
+                case 'F3' : if (currentAnimal?.f3) setViewMode('f3'); break;
                 case 'Right' : case 'next': moveToNextQuestion(); break;
                 case 'F4' : console.log("종료"); break;
             }
         } 
         // 상태 1: 정답 맞추기 전
         else {
-            switch (keyCode) {
+            switch (mappedKeyCode) {
                 case 'F1' : if (currentQuiz.options[0]) handleAnswer(currentQuiz.options[0]); break;
                 case 'F2' : if (currentQuiz.options[1]) handleAnswer(currentQuiz.options[1]); break;
                 case 'F3' : if (currentQuiz.options[2]) handleAnswer(currentQuiz.options[2]); break;
                 case 'Left' : if (historyStateRef.current) moveToPreviousQuestion(); break;
             }
         }
-    }, [mode, handleF4Key, handleAnswer, moveToNextQuestion, moveToPreviousQuestion]);
+    }, [mode, handleF4Key, handleAnswer, moveToNextQuestion, moveToPreviousQuestion, mapKeyCode]);
        
     useEffect(() => {
         if (connectedDevice) {
@@ -307,7 +333,20 @@ export default function Quiz() {
         }
     }, [connectedDevice, loadNewQuestion]);
 
-    
+    // key listener 추가 (Dictionary.tsx와 동일한 패턴)
+    useEffect(() => {
+        const targetDevice = connectedDevice;
+        if (!targetDevice || !targetDevice.connected || !dotpadsdk.current) return;
+
+        const listener = (keycode: string) => {
+            console.log('닷 패드 키 입력:', keycode);
+            // dotpadKeyCallback을 사용하여 처리 (키 코드 변환 포함)
+            dotpadKeyCallback(keycode);
+        };
+
+        console.log('key listener를 닷패드 기기에 추가합니다.', targetDevice.name);
+        dotpadsdk.current.addListenerKeyEvent(targetDevice.target, listener);
+    }, [connectedDevice, dotpadKeyCallback]);
 
     // 닷패드 데이터 전송
     const graphicHex = quizState.currentAnimal ? quizState.currentAnimal[viewMode] : "";
@@ -337,10 +376,7 @@ export default function Quiz() {
         if (connected) {
           const isConnected = await dotpadsdk.current?.connect(device.target);
           if (isConnected) {
-            await dotpadsdk.current?.addListenerKeyEvent(
-              device.target,
-              dotpadKeyCallback
-            );
+            // Listener will be added by the useEffect hook
             setConnectedDevice(device);
           }
         } else {
