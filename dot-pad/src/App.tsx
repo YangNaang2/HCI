@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { createContext } from "react";
 import Test from "./pages/Test";
 import Navigation from "./pages/Navigation";
@@ -18,9 +18,9 @@ export default function App() {
       <BrowserRouter>
         <Navbar />
         <Routes>
-          <Route path="/" element={<Navigation />} />
-          <Route path="/test" element={<Test />} />
+          <Route path="/" element={<Navigate to="/dictionary" replace />} />
           <Route path="/dictionary" element={<Dictionary />} />
+          <Route path="/test" element={<Test />} />
           <Route path="/quiz" element={<Quiz />} />
         </Routes>
       </BrowserRouter>
