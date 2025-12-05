@@ -12,8 +12,9 @@ export type Animal = {
     description: string;
     pose1: string;
     pose2: string;
-    pose3: string
-	category: '포유류' | '조류' | '어류' | '양서류/파충류' | '곤충'
+    pose3: string;
+	category: '포유류' | '조류' | '어류' | '양서류/파충류' | '곤충';
+	sound?: string; 
 };
 
 export const animalList: Animal[] = [
@@ -27,7 +28,8 @@ export const animalList: Animal[] = [
 		pose1: "옆모습",
 		pose2: "얼굴",
 		pose3: "발자국",
-		category: "조류"
+		category: "조류",
+		sound: "/sounds/vulture.mp3" 
 	},
 	{
 		name: "부엉이",
@@ -38,7 +40,8 @@ export const animalList: Animal[] = [
 		pose1: "앞모습",
 		pose2: "눈",
 		pose3: "부리",
-		category: "조류"
+		category: "조류",
+		sound: "/sounds/owl.mp3" 
 	},
 	{
 		name: "펭귄",
@@ -49,7 +52,8 @@ export const animalList: Animal[] = [
 		pose1: "옆모습",
 		pose2: "발자국",
 		pose3: "날개",
-		category: "조류"
+		category: "조류",
+		sound: "/sounds/penguins.mp3" 
 	},
 	
 	{
@@ -106,7 +110,8 @@ export const animalList: Animal[] = [
 		pose1: "옆모습",
 		pose2: "윗모습",
 		pose3: "등껍질",
-		category: "양서류/파충류"
+		category: "양서류/파충류",
+		sound: "/sounds/turtle.mp3" 
 	},
 	{
 		name: "뱀",
@@ -117,7 +122,8 @@ export const animalList: Animal[] = [
 		pose1: "옆모습",
 		pose2: "얼굴",
 		pose3: "혀",
-		category: "양서류/파충류"
+		category: "양서류/파충류",
+		sound: "/sounds/snakes.mp3" 
 	},
 	{
 		name: "도마뱀",
@@ -128,7 +134,8 @@ export const animalList: Animal[] = [
 		pose1: "옆모습",
 		pose2: "발자국",
 		pose3: "꼬리",
-		category: "양서류/파충류"
+		category: "양서류/파충류",
+		sound: "/sounds/lizard.mp3" 
 	},
 	{
 		name: "개구리",
@@ -139,7 +146,8 @@ export const animalList: Animal[] = [
 		pose1: "옆모습",
 		pose2: "얼굴",
 		pose3: "뒷다리",
-		category: "양서류/파충류"
+		category: "양서류/파충류",
+		sound: "/sounds/frogs.mp3" 
 	},   
 	
 	{
@@ -151,7 +159,8 @@ export const animalList: Animal[] = [
 		pose1: "옆모습",
 		pose2: "윗모습",
 		pose3: "벌침",
-		category: "곤충"
+		category: "곤충",
+		sound: "/sounds/bee.mp3" 
 	},
 	{
 		name: "나비",
@@ -173,7 +182,8 @@ export const animalList: Animal[] = [
 		pose1: "옆모습",
 		pose2: "윗모습",
 		pose3: "눈",
-		category: "곤충"
+		category: "곤충",
+		sound: "/sounds/dragonfly.mp3" 
 	},
 	{
 		name: "사슴벌레",
@@ -196,7 +206,8 @@ export const animalList: Animal[] = [
 		pose1: "얼굴",
 		pose2: "옆모습",
 		pose3: "발바닥",
-		category: "포유류"
+		category: "포유류",
+		sound: "/sounds/bear.mp3" 
 	},
 	{
 		name: "코끼리",
@@ -207,7 +218,8 @@ export const animalList: Animal[] = [
 		pose1: "옆모습",
 		pose2: "얼굴",
 		pose3: "상아랑 코",
-		category: "포유류"
+		category: "포유류",
+		sound: "/sounds/Elephant.mp3" 
 	},
 	{
 		name: "기린",
@@ -229,7 +241,8 @@ export const animalList: Animal[] = [
 		pose1: "얼굴",
 		pose2: "옆모습",
 		pose3: "귀",
-		category: "포유류"
+		category: "포유류",
+		sound: "/sounds/rabbit.mp3" 
 	},
 	{
 		name: "다람쥐",
@@ -240,7 +253,8 @@ export const animalList: Animal[] = [
 		pose1: "얼굴",
 		pose2: "옆모습",
 		pose3: "꼬리",
-		category: "포유류"
+		category: "포유류",
+		sound: "/sounds/chipmunk.mp3" 
 	},
 	{
 		name: "호랑이",
@@ -251,7 +265,8 @@ export const animalList: Animal[] = [
 		pose1: "얼굴",
 		pose2: "옆모습",
 		pose3: "무늬",
-		category: "포유류"
+		category: "포유류",
+		sound: "/sounds/Tiger.mp3" 
 	},
 ];
 
