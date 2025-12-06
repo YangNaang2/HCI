@@ -124,7 +124,7 @@ export default function AnimalBlock({ animalIdx, buttonName }: AnimalBlockProps)
                     </button>
 
                     <div style={{ display: "flex", justifyContent: "center", gap: "10px", marginBottom: "10px" }}>
-                        {[1.0, 1.5, 2.0].map((rate) => (
+                        {[1.0, 2.0, 4.0].map((rate) => (
                             <button
                                 key={rate}
                                 onClick={() => setPlaybackRate(rate)}
