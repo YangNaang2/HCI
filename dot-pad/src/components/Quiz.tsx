@@ -23,7 +23,8 @@ interface QuizProps {
   dotpadsdk: React.RefObject<DotPadSDK | null>;
   devices: Device[];
   setDevices: React.Dispatch<React.SetStateAction<Device[]>>;
-  mainDisplayData: string
+  mainDisplayData: string;
+  setQuizKeyHandler: React.Dispatch<React.SetStateAction<((keycode: string) => void) | null>>;
 }
 
 
@@ -45,7 +46,7 @@ const appendJosa = (word: string, type: '은/는') => {
 // ------------------------------------------------------------------------------------
 
 
-export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }: QuizProps) {
+export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData, setQuizKeyHandler }: QuizProps) {
     // 모드 관리
     const [mode, setMode] = useState<'menu' | 'integrated' | 'category'>('menu');
 
@@ -334,6 +335,38 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData }
             }
         }
     }, [mode, handleF4Key, handleAnswer, moveToNextQuestion, moveToPreviousQuestion]);
+    
+    // Quiz의 키 핸들러를 Dictionary에 등록
+    useEffect(() => {
+        const quizListener = (keycode: string) => {
+            // 메뉴 모드일 때는 키 입력 무시
+            if (mode === 'menu') return;
+            
+            // SDK의 keycode를 Quiz의 형식으로 변환
+            const keyMap: Record<string, string> = {
+                "1": "F1",
+                "2": "F2", 
+                "3": "F3",
+                "4": "F4",
+                "0": "Left",
+                "5": "Right"
+            };
+            
+            const mappedKey = keyMap[keycode];
+            if (mappedKey) {
+                dotpadKeyCallback(mappedKey);
+            }
+        };
+
+        console.log('Quiz: 키 핸들러를 Dictionary에 등록');
+        setQuizKeyHandler(() => quizListener);
+        
+        // 컴포넌트 언마운트 시 해제
+        return () => {
+            console.log('Quiz: 키 핸들러 해제');
+            setQuizKeyHandler(null);
+        };
+    }, [mode, dotpadKeyCallback, setQuizKeyHandler]);
        
     useEffect(() => {
         if (mode ==='integrated') {

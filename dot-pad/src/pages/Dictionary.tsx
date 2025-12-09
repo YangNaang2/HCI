@@ -45,7 +45,10 @@ export default function Dictionary() {
   }, [mainDisplayData, devices])
 
 
-  // key listener 추가
+  // Quiz에서 사용할 키 핸들러를 Dictionary에서 관리
+  const [quizKeyHandler, setQuizKeyHandler] = React.useState<((keycode: string) => void) | null>(null);
+
+  // key listener 추가 (Dictionary와 Quiz 통합)
   useEffect(() => {
     const targetDevice = devices[0];
     if (!targetDevice || !targetDevice.connected) return;
@@ -53,6 +56,13 @@ export default function Dictionary() {
     const listener = (keycode: string) => {
       console.log('닷 패드 키 입력:', keycode);
       
+      // 퀴즈 모드일 때는 Quiz의 핸들러 실행
+      if (quizMode && quizKeyHandler) {
+        quizKeyHandler(keycode);
+        return;
+      }
+      
+      // Dictionary 모드일 때만 아래 로직 실행
       const mappingFunctionKey: Record<string, "f1" | "f2" | "f3" | "f4"> = {
         "1": "f1",  // F1 버튼
         "2": "f2",  // F2 버튼
@@ -83,7 +93,7 @@ export default function Dictionary() {
 
     console.log('key listener를 닷패드 기기에 추가합니다.', targetDevice.name);
     dotpadsdk.current?.addListenerKeyEvent(targetDevice.target, listener);
-  }, [devices]);
+  }, [devices, quizMode, quizKeyHandler]);
   
 
   // f1 ~ f4 버튼을 눌렀을 때의 행동을 정의해놓은 함수
@@ -208,6 +218,7 @@ export default function Dictionary() {
             devices={devices}
             setDevices={setDevices}
             mainDisplayData={mainDisplayData}
+            setQuizKeyHandler={setQuizKeyHandler}
           />
         ) : (
           <div>

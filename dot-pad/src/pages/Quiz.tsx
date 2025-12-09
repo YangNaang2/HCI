@@ -350,7 +350,7 @@ export default function Quiz() {
                 case 'Left' : if (historyStateRef.current) moveToPreviousQuestion(); break;
             }
         }
-    }, [mode, handleF4Key, handleAnswer, moveToNextQuestion, moveToPreviousQuestion, mapKeyCode]);
+    }, [mode]);
        
     useEffect(() => {
         if (mode ==='integrated') {
@@ -361,26 +361,48 @@ export default function Quiz() {
         }
     }, [connectedDevice, loadNewQuestion, mode, selectedCategory]);
 
-    // key listener 추가 (Dictionary.tsx와 동일한 패턴)
+    // key listener 추가 (Dictionary.tsx와 동일한 패턴 적용)
     useEffect(() => {
-        if (mode === 'integrated') {
-            if (!quizState.currentAnimal) loadNewQuestion(true);
-        }
-        else if (mode === 'category' && selectedCategory) {
-            loadNewQuestion(true);
-        }
-        const targetDevice = connectedDevice;
-        if (!targetDevice || !targetDevice.connected || !dotpadsdk.current) return;
+        if (devices.length <= 0) return;
+
+        const targetDevice = devices[0];
+        if (!targetDevice || !targetDevice.connected) return;
 
         const listener = (keycode: string) => {
             console.log('닷 패드 키 입력:', keycode);
-            // dotpadKeyCallback을 사용하여 처리 (키 코드 변환 포함)
-            dotpadKeyCallback(keycode);
+            
+            const mappingFunctionKey: Record<string, string> = {
+                "1": "F1",
+                "2": "F2",
+                "3": "F3",
+                "4": "F4"
+            };
+            const mappingArrowKey: Record<string, string> = {
+                "0": "Left",
+                "5": "Right"
+            };
+            
+            if (["1", "2", "3", "4"].includes(keycode)) {
+                const fn = mappingFunctionKey[keycode];
+                if (fn) {
+                    console.log("누른 버튼의 기능이 작동합니다.", fn);
+                    dotpadKeyCallback(fn);
+                }
+            } else if (["0", "5"].includes(keycode)) {
+                const dir = mappingArrowKey[keycode];
+                if (dir) {
+                    console.log("누른 버튼의 기능이 작동합니다.", dir);
+                    dotpadKeyCallback(dir);
+                }
+            } else {
+                console.log("해당 버튼을 매핑할 수 없습니다.", keycode);
+            }
         };
 
         console.log('key listener를 닷패드 기기에 추가합니다.', targetDevice.name);
-        dotpadsdk.current.addListenerKeyEvent(targetDevice.target, listener);
-    }, [connectedDevice, dotpadKeyCallback, loadNewQuestion, mode, selectedCategory]);
+        dotpadsdk.current?.addListenerKeyEvent(targetDevice.target, listener);
+
+    }, []);
 
     // 닷패드 데이터 전송
     const numberToBrailleKeys = (num: number): string[] => {
