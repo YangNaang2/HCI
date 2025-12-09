@@ -35,14 +35,15 @@ export default function Dictionary() {
   }, []);
 
 
-  // 버튼을 누를 때마다 동물 이미지를 새로 출력
+  // 버튼을 누를 때마다 동물 이미지를 새로 출력 (퀴즈 모드가 아닐 때만)
   useEffect(() => {
+    if (quizMode) return; // 퀴즈 모드일 때는 Dictionary 이미지 출력 안 함
     if (!devices[0] || !devices[0].connected) return;
     const data = AnimalData({animalIdx, buttonName});
     if (data) {
       handlePrintImage(data);
     }
-  }, [mainDisplayData, devices])
+  }, [mainDisplayData, devices, quizMode])
 
 
   // Quiz에서 사용할 키 핸들러를 Dictionary에서 관리

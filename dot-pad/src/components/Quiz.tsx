@@ -95,10 +95,7 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData, 
     useEffect(() => { historyStateRef.current = historyState; }, [historyState]);
     useEffect(() => { futureStateRef.current = futureState; }, [futureState]);
 
-    // SDK 초기화 및 연결 처리
-    useEffect(() => {
-        dotpadsdk.current = new DotPadSDK();
-    }, []);
+    // SDK는 Dictionary에서 이미 초기화되어 있으므로 Quiz에서는 초기화하지 않음
     
     //----로직 함수----
     // 1. 3개의 랜덤한 답안 옵션 생성
