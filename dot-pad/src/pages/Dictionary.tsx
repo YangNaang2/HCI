@@ -93,6 +93,11 @@ export default function Dictionary() {
     };
     console.log('key listener를 닷패드 기기에 추가합니다.', targetDevice.name);
     dotpadsdk.current?.addListenerKeyEvent(targetDevice.target, listener);
+
+    // 3초 딜레이 후 이미지 출력
+    setTimeout(() => {
+      handlePrintImage(mainDisplayData);
+    }, 3000);
   }, [devices, quizMode, quizKeyHandler]);
   
 
