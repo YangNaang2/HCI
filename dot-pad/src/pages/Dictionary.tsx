@@ -91,7 +91,6 @@ export default function Dictionary() {
         console.log("해당 버튼을 매핑할 수 없습니다.", keycode);
       }
     };
-
     console.log('key listener를 닷패드 기기에 추가합니다.', targetDevice.name);
     dotpadsdk.current?.addListenerKeyEvent(targetDevice.target, listener);
   }, [devices, quizMode, quizKeyHandler]);
