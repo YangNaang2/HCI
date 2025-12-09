@@ -21,9 +21,8 @@ export default function Dictionary() {
   const [animalIdx, setAnimalIdx] = React.useState<number>(0); // 현재 출력 중인 동물 종의 인덱스 ex) 0:개, 1:고양이, 2:펭귄
   const [buttonName, setButtonName] = React.useState<"f1" | "f2" | "f3" | "f4">("f1"); // 누른 버튼의 종류 ex) f1 ~ f4
 
-  // 그림판에 표시할 데이터 상태 정의 (main : 그림용, sub : 텍스트용)
+  // 그림판에 표시할 데이터 상태 정의
   const mainDisplayData = AnimalData({animalIdx, buttonName}); // AnimalData: 입력한 인덱스에 알맞는 정보를 반환
-  const subDisplayData = "";
 
   //페이지가 켜질 때 딱 한 번 실행
   useEffect(() => { 
@@ -152,24 +151,6 @@ export default function Dictionary() {
 
   };
 
-
-  // 설명글 출력 테스트 함수
-  const handlePrintText = async () =>  {
-    console.log("펭귄 설명글 출력");
-    const targetDevice = devices[0];
-    
-    //****** 실제 패드 연결시 사용할 부분 *****
-    if (dotpadsdk.current && targetDevice) {
-      //Test.tsx의 설명글 출력 함수 사용
-      await dotpadsdk.current?.displayTextData(targetDevice, subDisplayData); // SDK text 출력 코드
-
-    } else {
-      handlePrintError();
-    }
-
-  };
-  
-
   const handlePrintError = () => {
     console.error("hanlge pring error");
     //alert("기기를 먼저 연결하세요.")
@@ -236,7 +217,7 @@ export default function Dictionary() {
           />
         ) : (
           <div>
-            <DotPadDisplay mainData={mainDisplayData} subData={subDisplayData} />
+            <DotPadDisplay mainData={mainDisplayData} subData="" />
             <DotPadButtons onArrowButtonClick={onArrowButtonClick} onFunctionButtonClick={onFunctionButtonClick} />
             <AnimalBlock animalIdx={animalIdx} buttonName={buttonName} />
           </div>

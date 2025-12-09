@@ -1,7 +1,7 @@
 import React, {useState, useEffect, useRef, useCallback} from 'react';
 import { DotPadSDK } from "../DotPadSDK-1.0.0";
 import { Device } from "../device";
-import { Animal, animalList, AnimalData, brailleMap } from "../util/animalData";
+import { Animal, animalList, AnimalData } from "../util/animalData";
 import DotPadDisplay  from '../components/DotPadDisplay'; 
 import DotPadButtons  from '../components/DotPadButtons'; 
 import '../App.css';
@@ -27,14 +27,6 @@ interface QuizProps {
   setQuizKeyHandler: React.Dispatch<React.SetStateAction<((keycode: string) => void) | null>>;
 }
 
-
-// ---------------------------- 텍스트 -> 헥스 코드 변환 함수 ------------------------------
-const textToBrailleHex = (parts: string[]): string => {
-    const hexParts = parts.map(part => {
-        return brailleMap[part] || "000000";
-    });
-    return hexParts.join('');
-};
 const appendJosa = (word: string, type: '은/는') => {
     if (!word) return "";
 
@@ -43,8 +35,6 @@ const appendJosa = (word: string, type: '은/는') => {
 
     switch (type) { case '은/는' : return hasBatchim ? `${word}은` : `${word}는`;}
 };
-// ------------------------------------------------------------------------------------
-
 
 export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData, setQuizKeyHandler }: QuizProps) {
     // 모드 관리
@@ -58,9 +48,6 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData, 
     //히스토리 관리
     const [historyState, setHistoryState] = useState<QuizState | null>(null);
     const [futureState, setFutureState] = useState<QuizState | null>(null);
-
-    //테스트용 헥스 코드 
-    const [testHex, setTestHex] = useState<string | null>(null);
 
     //퀴즈 state
     const [quizState, setQuizState] = useState<QuizState>({
@@ -374,44 +361,17 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData, 
         }
     }, [connectedDevice, loadNewQuestion, mode, selectedCategory]);
 
-    
-
     // 닷패드 데이터 전송
-    const numberToBrailleKeys = (num: number): string[] => {
-        const numStr = num.toString();
-        const result = ["num"]
-
-        for (let char of numStr) {
-            result.push(char);
-        }
-
-        return result;
-    };
     const graphicHex = quizState.currentAnimal ? quizState.currentAnimal[viewMode] : "";
-    const textHex = textToBrailleHex(
-        !quizState.isAnswered
-        ? [// 정답 전엔 '(문제번호) 무엇일까요?
-            ...numberToBrailleKeys(quizState.questionNumber),
-            " ",
-             "무엇일까요"] 
-        :  [// 정답 후엔 '(문제번호) (정답동물이름)'
-            ...numberToBrailleKeys(quizState.questionNumber),
-            " ", 
-            quizState.currentAnimal?.name || ""]
-    );
-
 
     useEffect(() => {
         if (!connectedDevice || !dotpadsdk.current) return;
         const updateDotPad = async () => {
-            // 1. 그래픽(이미지) 전송
-            mainDisplayData = graphicHex
+            // 그래픽(이미지) 전송
             if (graphicHex) await dotpadsdk.current?.displayGraphicData(connectedDevice.target, graphicHex);
-            // 2. 텍스트(점자) 전송
-            if (textHex) await dotpadsdk.current?.displayTextData(connectedDevice.target, textHex);
         };
         updateDotPad();
-    }, [connectedDevice, graphicHex, textHex]);
+    }, [connectedDevice, graphicHex]);
     
     // ---- UI ----
     const startIntegratedMode = () => {
@@ -483,7 +443,7 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData, 
                     <div className="quiz-area">
                         <DotPadDisplay
                             mainData={graphicHex}
-                            subData={testHex ?? textHex} // 테스트용 헥스 추가
+                            subData=""
                         />
                     
                         {/* 사용자 컨트롤 영역 (웹 UI 버튼) */}
@@ -568,28 +528,6 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData, 
                     ))}
                 </div>
                 </div>        
-                
-                {/* ================= 웹 UI 매핑 테스트 패널 ================= */}
-                <div style={{ marginTop: '30px', padding: '15px', border: '2px dashed blue', background: '#f0f9ff' }}>
-                    <h3>매핑 테스트</h3>
-                    
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '15px' }}>
-                        
-                        {/* 3. 리셋 버튼 */}
-                        <button onClick={() => setTestHex(null)} style={{background: '#ffcccc'}}>테스트 종료 (원래대로)</button>
-                    </div>
-
-                    <div>
-                        <input 
-                            type="text" 
-                            placeholder="직접 입력 (예: A5)" 
-                            onChange={(e) => setTestHex(e.target.value)}
-                            style={{ padding: '5px', width: '150px', marginRight: '10px' }}
-                        />
-                        <span>입력하는 대로 바로 위에 뜸</span>
-                    </div>
-                </div>
-
             </div>
         
     )}
