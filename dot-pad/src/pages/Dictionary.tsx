@@ -93,12 +93,21 @@ export default function Dictionary() {
     };
     console.log('key listener를 닷패드 기기에 추가합니다.', targetDevice.name);
     dotpadsdk.current?.addListenerKeyEvent(targetDevice.target, listener);
-
-    // 3초 딜레이 후 이미지 출력
-    setTimeout(() => {
-      handlePrintImage(mainDisplayData);
-    }, 3000);
   }, [devices, quizMode, quizKeyHandler]);
+  
+  // 기기가 처음 연결되었을 때 초기 이미지 출력 (Dictionary 모드일 때만)
+  useEffect(() => {
+    const targetDevice = devices[0];
+    if (!targetDevice || !targetDevice.connected) return;
+    if (quizMode) return; // 퀴즈 모드에서는 실행하지 않음
+    
+    // 연결 직후 초기 이미지 출력
+    const timer = setTimeout(() => {
+      handlePrintImage(mainDisplayData);
+    }, 500); // 연결 안정화를 위한 짧은 딜레이
+    
+    return () => clearTimeout(timer);
+  }, [devices.length > 0 ? devices[0]?.connected : false]); // 연결 상태가 변경될 때만 실행
   
 
   // f1 ~ f4 버튼을 눌렀을 때의 행동을 정의해놓은 함수
