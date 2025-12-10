@@ -366,7 +366,7 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData, 
     
     // [추가] 텍스트 데이터 생성
     const textHex = React.useMemo(() => {
-        if (!quizState.currentAnimal || !dotpadsdk.current) return "";
+        if (!quizState.currentAnimal) return "";
         
         let displayText = "";
         
@@ -382,8 +382,8 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData, 
             if (viewMode === "f3" && animal.pose3) displayText += animal.pose3;
         }
         
-        return dotpadsdk.current.convertToUnicode(displayText);
-    }, [quizState.currentAnimal, quizState.options, quizState.isAnswered, quizState.isCorrect, viewMode, dotpadsdk]);
+        return displayText;
+    }, [quizState.currentAnimal, quizState.options, quizState.isAnswered, quizState.isCorrect, viewMode]);
 
     useEffect(() => {
         if (!connectedDevice || !dotpadsdk.current) return;
