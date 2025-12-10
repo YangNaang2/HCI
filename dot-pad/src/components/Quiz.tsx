@@ -363,15 +363,38 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData, 
 
     // 닷패드 데이터 전송
     const graphicHex = quizState.currentAnimal ? quizState.currentAnimal[viewMode] : "";
+    
+    // [추가] 텍스트 데이터 생성
+    const textHex = React.useMemo(() => {
+        if (!quizState.currentAnimal || !dotpadsdk.current) return "";
+        
+        let displayText = "";
+        
+        if (!quizState.isAnswered) {
+            // 답변 전: 선택지 표시
+            displayText = quizState.options.map((opt, i) => `${i + 1}.${opt}`).join(" ");
+        } else if (quizState.isCorrect) {
+            // 정답 후: 동물 이름과 포즈 정보
+            const animal = quizState.currentAnimal;
+            displayText = `${animal.name} `;
+            if (viewMode === "f1" && animal.pose1) displayText += animal.pose1;
+            if (viewMode === "f2" && animal.pose2) displayText += animal.pose2;
+            if (viewMode === "f3" && animal.pose3) displayText += animal.pose3;
+        }
+        
+        return dotpadsdk.current.convertToUnicode(displayText);
+    }, [quizState.currentAnimal, quizState.options, quizState.isAnswered, quizState.isCorrect, viewMode, dotpadsdk]);
 
     useEffect(() => {
         if (!connectedDevice || !dotpadsdk.current) return;
         const updateDotPad = async () => {
             // 그래픽(이미지) 전송
             if (graphicHex) await dotpadsdk.current?.displayGraphicData(connectedDevice.target, graphicHex);
+            // [추가] 텍스트 전송
+            if (textHex) await dotpadsdk.current?.displayTextData(connectedDevice.target, textHex);
         };
         updateDotPad();
-    }, [connectedDevice, graphicHex]);
+    }, [connectedDevice, graphicHex, textHex, dotpadsdk]);
     
     // ---- UI ----
     const startIntegratedMode = () => {
@@ -443,7 +466,7 @@ export default function Quiz({ dotpadsdk, devices, setDevices, mainDisplayData, 
                     <div className="quiz-area">
                         <DotPadDisplay
                             mainData={graphicHex}
-                            subData=""
+                            subData={textHex}
                         />
                     
                         {/* 사용자 컨트롤 영역 (웹 UI 버튼) */}

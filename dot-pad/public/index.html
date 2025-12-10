@@ -27,6 +27,35 @@
     <title>React App</title>
 
     <script src="%PUBLIC_URL%/DotPadSDK-1.0.0.js"></script>
+    
+    <!-- React 에러 오버레이 비활성화 -->
+    <script>
+      // React 개발 서버의 에러 오버레이 숨기기
+      window.addEventListener('error', function(e) {
+        if (e.message && e.message.includes('GATT operation already in progress')) {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+        }
+      });
+      
+      // iframe을 통한 에러 오버레이 제거
+      const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+          mutation.addedNodes.forEach(function(node) {
+            if (node.nodeName === 'IFRAME' && 
+                (node.id === 'webpack-dev-server-client-overlay' || 
+                 node.style?.position === 'fixed')) {
+              node.remove();
+            }
+          });
+        });
+      });
+      
+      observer.observe(document.documentElement, {
+        childList: true,
+        subtree: true
+      });
+    </script>
 
   </head>
   <body>
