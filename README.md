@@ -51,8 +51,8 @@
 | **Frontend** | React, TypeScript |
 | **Hardware Interface** | Dot Pad API, Serial Communication |
 | **AI / Data** | Google Gemini 3 Pro (Text Gen), Nano Banana Pro (Image Gen) |
-| **Audio** | Web Speech API (TTS), Howler.js (or HTML5 Audio) |
-| **Collaboration** | GitHub, Notion, Discord |
+| **Audio** | Web Speech API (TTS), FindSounds, Sound Dino, pixabay, FreeAnimalSounds (Audio) |
+| **Collaboration** | GitHub, Notion, KakaoTalk |
 
 <br/>
 
@@ -62,10 +62,10 @@
 
 ```bash
 # 1. 저장소 클론
-git clone [https://github.com/your-username/DOTIONARY.git](https://github.com/your-username/DOTIONARY.git)
+git clone [https://github.com/mongsam2/HCI]((https://github.com/mongsam2/HCI))
 
 # 2. 프로젝트 폴더로 이동
-cd DOTIONARY
+cd HCI/dot-pad
 
 # 3. 패키지 설치
 npm install
